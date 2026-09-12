@@ -65,6 +65,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.materialIconsCore)
             implementation(libs.compose.materialIconsExtended)
+            implementation("org.jetbrains.compose.ui:ui-backhandler:1.11.1")
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.coil.compose)

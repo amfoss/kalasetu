@@ -19,6 +19,11 @@ sealed class Screen {
 
     data class Profile(val userId: String) : Screen()
     data class EditProfile(val userId: String) : Screen()
+
+    // --- Marketplace Flow (Audience) ---
+    data object Marketplace : Screen()
+    data class ProductOverview(val productId: String) : Screen()
+
     // --- Artist Flow ---
     data class ArtistHome(val userId: String) : Screen()
     data class EventDetails(val eventId: String) : Screen()

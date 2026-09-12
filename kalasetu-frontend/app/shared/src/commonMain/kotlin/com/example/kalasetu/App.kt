@@ -2,15 +2,19 @@ package com.example.kalasetu
 
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import com.example.kalasetu.features.application.*
 import com.example.kalasetu.features.auth.*
 import com.example.kalasetu.features.event.*
+import com.example.kalasetu.features.marketplace.*
 import com.example.kalasetu.features.onboarding.*
 import com.example.kalasetu.features.profile.*
 import com.example.kalasetu.navigation.Screen
 import com.example.kalasetu.theme.KalasetuTheme
 import kotlin.random.Random
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun App() {
     var screen by remember { mutableStateOf<Screen>(Screen.OnboardingWelcome) }
@@ -69,12 +73,25 @@ fun App() {
                 screen = when (selectedRole) {
                     "Artist" -> Screen.ArtistHome(userId = "123")
                     "Event Organizer" -> Screen.OrganizerHome(userId = "123")
-                    else -> Screen.Profile(userId = "123")
+                    else -> Screen.Marketplace
                 }
             }
 
+            // ─── Marketplace (Audience) ───
+            Screen.Marketplace -> MarketplaceScreen(
+                onProductClick = { productId -> screen = Screen.ProductOverview(productId) },
+                onProfileClick = { screen = Screen.Profile(userId = "123") },
+            )
+
+            is Screen.ProductOverview -> ProductOverviewScreen(
+                productId = currentScreen.productId,
+                onBack = { screen = Screen.Marketplace },
+                onProfileClick = { screen = Screen.Profile(userId = "123") },
+            )
+
             // ─── Profile ───
             is Screen.Profile -> {
+                BackHandler { screen = Screen.Marketplace }
                 val presenter = remember(currentScreen.userId, currentProfile) {
                     ProfilePresenter(
                         repository = ProfileRepository(
