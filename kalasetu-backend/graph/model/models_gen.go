@@ -51,9 +51,10 @@ type CreateCommentInput struct {
 }
 
 type CreateEventInput struct {
-	Name      string `json:"name"`
-	StartDate string `json:"startDate"`
-	Duration  string `json:"duration"`
+	Name      string          `json:"name"`
+	StartDate string          `json:"startDate"`
+	Duration  string          `json:"duration"`
+	Banner    *graphql.Upload `json:"banner,omitempty"`
 }
 
 type CreatePostInput struct {
@@ -69,6 +70,7 @@ type Event struct {
 	Duration  string  `json:"duration"`
 	HostID    *string `json:"hostId,omitempty"`
 	HostName  *string `json:"hostName,omitempty"`
+	BannerURL *string `json:"bannerUrl,omitempty"`
 	CreatedAt string  `json:"createdAt"`
 }
 
@@ -143,9 +145,10 @@ type UpdateCommentInput struct {
 }
 
 type UpdateEventInput struct {
-	Name      *string `json:"name,omitempty"`
-	StartDate *string `json:"startDate,omitempty"`
-	Duration  *string `json:"duration,omitempty"`
+	Name      *string         `json:"name,omitempty"`
+	StartDate *string         `json:"startDate,omitempty"`
+	Duration  *string         `json:"duration,omitempty"`
+	Banner    *graphql.Upload `json:"banner,omitempty"`
 }
 
 type UpdatePostInput struct {

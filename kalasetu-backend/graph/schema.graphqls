@@ -74,6 +74,7 @@ type Event {
   duration: String! # Postgres interval literal, e.g. "2 days"
   hostId: ID
   hostName: String
+  bannerUrl: String
   createdAt: String! # RFC3339
 }
 
@@ -81,12 +82,14 @@ input CreateEventInput {
   name: String!
   startDate: String!
   duration: String!
+  banner: Upload
 }
 
 input UpdateEventInput {
   name: String
   startDate: String
   duration: String
+  banner: Upload
 }
 
 input OnboardingInput {

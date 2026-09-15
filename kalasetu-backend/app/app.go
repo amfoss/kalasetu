@@ -60,27 +60,27 @@ func NewApp() *App {
 
 	userService := services.NewUserService(userRepo)
 
-	eventRepo := repos.NewEventRepository(db)
-	eventService := services.NewEventService(eventRepo)
-
-	applicationRepo := repos.NewApplicationRepository(db)
-	applicationService := services.NewApplicationService(applicationRepo)
-	postRepo := repos.NewPostRepository(db)
-	postMediaRepo := repos.NewPostMediaRepository(db)
-
 	var objectStorage storage.ObjectStorage
 	storageCfg := config.LoadStorageConfig()
 	if storageCfg.IsConfigured() {
 		s3Storage, err := storage.NewS3(storageCfg)
 		if err != nil {
-			log.Printf("Warning: failed to initialise object storage: %v. Post media uploads will fail at runtime.", err)
+			log.Printf("Warning: failed to initialise object storage: %v. Post media and event banner uploads will fail at runtime.", err)
 		} else {
 			objectStorage = s3Storage
 			log.Printf("Object storage configured for bucket %q in region %q", storageCfg.Bucket, storageCfg.Region)
 		}
 	} else {
-		log.Println("Note: object storage (AWS_BUCKET) is not configured. Posts can be created without media.")
+		log.Println("Note: object storage (AWS_BUCKET) is not configured. Posts and events can be created without media.")
 	}
+
+	eventRepo := repos.NewEventRepository(db)
+	eventService := services.NewEventService(eventRepo, objectStorage)
+
+	applicationRepo := repos.NewApplicationRepository(db)
+	applicationService := services.NewApplicationService(applicationRepo)
+	postRepo := repos.NewPostRepository(db)
+	postMediaRepo := repos.NewPostMediaRepository(db)
 
 	postService := services.NewPostService(postRepo, postMediaRepo, objectStorage)
 

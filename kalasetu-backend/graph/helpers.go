@@ -87,6 +87,10 @@ func toGraphEvent(e *models.Event) *model.Event {
 	if e.HostName != "" {
 		hostName = &e.HostName
 	}
+	var bannerURL *string
+	if e.BannerURL != "" {
+		bannerURL = &e.BannerURL
+	}
 	return &model.Event{
 		ID:        strconv.Itoa(e.ID),
 		Name:      e.Name,
@@ -94,6 +98,7 @@ func toGraphEvent(e *models.Event) *model.Event {
 		Duration:  e.Duration,
 		HostID:    hostID,
 		HostName:  hostName,
+		BannerURL: bannerURL,
 		CreatedAt: e.CreatedAt.Format(time.RFC3339),
 	}
 }
@@ -185,6 +190,20 @@ func toGraphPostMedia(m *models.PostMedia) *model.PostMedia {
 	}
 }
 
+// toUploadMedia converts a gqlgen Upload value into the application-level
+// UploadMedia representation so services stay decoupled from gqlgen. A nil
+// upload (no file attached) yields nil.
+func toUploadMedia(u *graphql.Upload) *models.UploadMedia {
+	if u == nil {
+		return nil
+	}
+	return &models.UploadMedia{
+		Reader:      u.File,
+		Filename:    u.Filename,
+		ContentType: u.ContentType,
+	}
+}
+
 // toUploadMediaList converts gqlgen's Upload values into the application-level
 // UploadMedia representation so services stay decoupled from gqlgen.
 func toUploadMediaList(uploads []*graphql.Upload) []models.UploadMedia {
@@ -193,14 +212,9 @@ func toUploadMediaList(uploads []*graphql.Upload) []models.UploadMedia {
 	}
 	result := make([]models.UploadMedia, 0, len(uploads))
 	for _, u := range uploads {
-		if u == nil {
-			continue
+		if m := toUploadMedia(u); m != nil {
+			result = append(result, *m)
 		}
-		result = append(result, models.UploadMedia{
-			Reader:      u.File,
-			Filename:    u.Filename,
-			ContentType: u.ContentType,
-		})
 	}
 	return result
 }
