@@ -14,11 +14,17 @@ import (
 var (
 	ErrCartEmpty      = errors.New("your cart is empty")
 	ErrCheckoutOwnBuy = errors.New("you cannot buy your own listing")
+	// ErrItemNotCancellable means the Order Item is not in the paid state.
+	ErrItemNotCancellable = errors.New("order item cannot be cancelled: only paid items can be")
 )
 
 // PayFunc charges amountCents for reference (the order id) and returns the
 // charge id. It runs inside the checkout transaction.
 type PayFunc func(ctx context.Context, amountCents int64, reference string) (chargeID string, err error)
+
+// RefundFunc refunds amountCents of the Order's charge. It runs inside the
+// cancellation transaction.
+type RefundFunc func(ctx context.Context, chargeID string, amountCents int64) error
 
 type OrderRepository interface {
 	// Checkout turns the buyer's Cart into an Order in a single transaction:
@@ -39,6 +45,13 @@ type OrderRepository interface {
 	// AdvanceItem sets the item's status to to only if it is still in from, and
 	// reports whether it did, so concurrent updates cannot skip a step.
 	AdvanceItem(ctx context.Context, id int, from, to models.FulfilmentStatus) (bool, error)
+	// CancelItem, in a single transaction, moves a paid item to cancelled, puts
+	// its quantity back into the Listing's stock (Archived or not) and calls
+	// refund for the item's price times quantity. Any failure, including
+	// refund's (returned unchanged), changes nothing. It returns
+	// ErrItemNotCancellable if the item is not paid, so of two concurrent
+	// cancels only one refunds.
+	CancelItem(ctx context.Context, id int, refund RefundFunc) error
 }
 
 type orderRepository struct {
@@ -220,6 +233,40 @@ func (r *orderRepository) AdvanceItem(ctx context.Context, id int, from, to mode
 	return n > 0, err
 }
 
+func (r *orderRepository) CancelItem(ctx context.Context, id int, refund RefundFunc) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// The row lock serialises concurrent cancels and shipping of the same item.
+	var listingID, quantity int
+	var priceCents int64
+	var status string
+	var chargeID sql.NullString
+	err = tx.QueryRowContext(ctx, `
+		SELECT i.listing_id, i.quantity, (i.price * 100)::bigint, i.status, o.charge_id
+		FROM order_items i JOIN orders o ON o.id = i.order_id
+		WHERE i.id = $1 FOR UPDATE OF i`, id).Scan(&listingID, &quantity, &priceCents, &status, &chargeID)
+	if err != nil {
+		return err
+	}
+	if status != "paid" {
+		return ErrItemNotCancellable
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE order_items SET status = 'cancelled' WHERE id = $1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE listings SET stock = stock + $2 WHERE id = $1`, listingID, quantity); err != nil {
+		return err
+	}
+	if err := refund(ctx, chargeID.String, priceCents*int64(quantity)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (r *orderRepository) FindItemsBySeller(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error) {
 	if status == nil {
 		return r.queryItems(ctx, `i.seller_id = $1`, sellerID)
@@ -230,7 +277,7 @@ func (r *orderRepository) FindItemsBySeller(ctx context.Context, sellerID int, s
 // queryItems selects Order Items matching where (over aliases i and o), newest first.
 func (r *orderRepository) queryItems(ctx context.Context, where string, args ...any) ([]models.SellerOrderItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT i.id, i.order_id, i.listing_id, i.seller_id, i.title, i.price::float8, i.quantity, i.status,
+		SELECT i.id, i.order_id, o.buyer_id, i.listing_id, i.seller_id, i.title, i.price::float8, i.quantity, i.status,
 			o.ship_name, o.ship_phone, o.ship_line1, o.ship_line2, o.ship_city, o.ship_state,
 			o.ship_postal_code, o.ship_country, o.created_at
 		FROM order_items i JOIN orders o ON o.id = i.order_id
@@ -246,7 +293,7 @@ func (r *orderRepository) queryItems(ctx context.Context, where string, args ...
 		var it models.SellerOrderItem
 		var status string
 		s := &it.Shipping
-		if err := rows.Scan(&it.ID, &it.OrderID, &it.ListingID, &it.SellerID, &it.Title, &it.Price, &it.Quantity, &status,
+		if err := rows.Scan(&it.ID, &it.OrderID, &it.BuyerID, &it.ListingID, &it.SellerID, &it.Title, &it.Price, &it.Quantity, &status,
 			&s.Name, &s.Phone, &s.Line1, &s.Line2, &s.City, &s.State, &s.PostalCode, &s.Country, &it.CreatedAt); err != nil {
 			return nil, err
 		}

@@ -70,6 +70,7 @@ type Order struct {
 type SellerOrderItem struct {
 	OrderItem
 	OrderID   int
+	BuyerID   int
 	Shipping  ShippingAddress
 	CreatedAt time.Time
 }

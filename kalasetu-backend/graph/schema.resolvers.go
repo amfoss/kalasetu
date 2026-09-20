@@ -325,6 +325,23 @@ func (r *mutationResolver) UpdateOrderItemStatus(ctx context.Context, id string,
 	return toGraphSellerOrderItem(item), nil
 }
 
+// CancelOrderItem is the resolver for the cancelOrderItem field.
+func (r *mutationResolver) CancelOrderItem(ctx context.Context, id string) (*model.SellerOrderItem, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	itemID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid order item id: %s", id)
+	}
+	item, err := r.orderService.CancelItem(ctx, userID, itemID)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphSellerOrderItem(item), nil
+}
+
 // Health is the resolver for the health field.
 func (r *queryResolver) Health(ctx context.Context) (string, error) {
 	return "OK", nil

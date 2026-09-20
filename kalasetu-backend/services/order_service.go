@@ -15,6 +15,8 @@ var (
 	ErrShippingAddressIncomplete = errors.New("shipping address is incomplete")
 	ErrOrderItemNotFound         = errors.New("order item not found")
 	ErrOrderItemForbidden        = errors.New("forbidden: this order item is not for one of your listings")
+	ErrOrderItemCancelForbidden  = errors.New("forbidden: only the buyer or the seller can cancel this order item")
+	ErrRefundFailed              = errors.New("refund failed")
 	ErrInvalidStatusTransition   = errors.New("invalid status transition: an order item goes paid, shipped, delivered, one step at a time")
 )
 
@@ -31,6 +33,12 @@ type OrderService interface {
 	// shipped to delivered). Anyone else gets ErrOrderItemForbidden; skipping,
 	// repeating or reversing gets ErrInvalidStatusTransition.
 	UpdateItemStatus(ctx context.Context, sellerID, itemID int, status models.FulfilmentStatus) (*models.SellerOrderItem, error)
+	// CancelItem lets the item's Buyer or Seller cancel it while it is paid,
+	// restocking the Listing and refunding through the PaymentProvider. Anyone
+	// else gets ErrOrderItemCancelForbidden, a non-paid item
+	// repos.ErrItemNotCancellable, and a failed refund ErrRefundFailed with
+	// nothing changed.
+	CancelItem(ctx context.Context, userID, itemID int) (*models.SellerOrderItem, error)
 }
 
 type orderService struct {
@@ -103,5 +111,29 @@ func (s *orderService) UpdateItemStatus(ctx context.Context, sellerID, itemID in
 		return nil, ErrInvalidStatusTransition
 	}
 	item.Status = status
+	return item, nil
+}
+
+func (s *orderService) CancelItem(ctx context.Context, userID, itemID int) (*models.SellerOrderItem, error) {
+	item, err := s.repo.FindItem(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if item == nil {
+		return nil, ErrOrderItemNotFound
+	}
+	if userID != item.BuyerID && userID != item.SellerID {
+		return nil, ErrOrderItemCancelForbidden
+	}
+	err = s.repo.CancelItem(ctx, itemID, func(ctx context.Context, chargeID string, amountCents int64) error {
+		if err := s.payments.Refund(ctx, payments.RefundRequest{ChargeID: chargeID, Amount: amountCents}); err != nil {
+			return fmt.Errorf("%w: %w", ErrRefundFailed, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	item.Status = models.StatusCancelled
 	return item, nil
 }

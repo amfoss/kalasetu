@@ -53,6 +53,10 @@ type Mutation {
   # Seller-only for that item. Forward-only, one step at a time: PAID to
   # SHIPPED to DELIVERED; skipping, repeating or reversing is rejected.
   updateOrderItemStatus(id: ID!, status: FulfilmentStatus!): SellerOrderItem!
+  # Buyer or Seller of the item. Only a PAID item can be cancelled: the units go
+  # back into the Listing's Stock (even if Archived) and the payment for the
+  # item is refunded. If the refund fails, nothing changes.
+  cancelOrderItem(id: ID!): SellerOrderItem!
 }
 
 type Event {

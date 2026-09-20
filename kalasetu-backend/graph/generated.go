@@ -88,6 +88,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddToCart               func(childComplexity int, listingID string, quantity *int32) int
 		ArchiveListing          func(childComplexity int, id string) int
+		CancelOrderItem         func(childComplexity int, id string) int
 		Checkout                func(childComplexity int, shippingAddress model.ShippingAddressInput) int
 		CreateEvent             func(childComplexity int, input model.CreateEventInput) int
 		CreateListing           func(childComplexity int, input model.CreateListingInput) int
@@ -183,6 +184,7 @@ type MutationResolver interface {
 	RemoveFromCart(ctx context.Context, listingID string) (*model.Cart, error)
 	Checkout(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.Order, error)
 	UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error)
+	CancelOrderItem(ctx context.Context, id string) (*model.SellerOrderItem, error)
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (string, error)
@@ -429,6 +431,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ArchiveListing(childComplexity, args["id"].(string)), true
+	case "Mutation.cancelOrderItem":
+		if e.ComplexityRoot.Mutation.CancelOrderItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_cancelOrderItem_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CancelOrderItem(childComplexity, args["id"].(string)), true
 	case "Mutation.checkout":
 		if e.ComplexityRoot.Mutation.Checkout == nil {
 			break
@@ -1013,6 +1026,17 @@ func (ec *executionContext) field_Mutation_addToCart_args(ctx context.Context, r
 }
 
 func (ec *executionContext) field_Mutation_archiveListing_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_cancelOrderItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
@@ -2996,6 +3020,67 @@ func (ec *executionContext) fieldContext_Mutation_updateOrderItemStatus(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateOrderItemStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_cancelOrderItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_cancelOrderItem,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CancelOrderItem(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNSellerOrderItem2ᚖkalasetuᚋgraphᚋmodelᚐSellerOrderItem,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_cancelOrderItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_SellerOrderItem_id(ctx, field)
+			case "orderId":
+				return ec.fieldContext_SellerOrderItem_orderId(ctx, field)
+			case "listingId":
+				return ec.fieldContext_SellerOrderItem_listingId(ctx, field)
+			case "title":
+				return ec.fieldContext_SellerOrderItem_title(ctx, field)
+			case "price":
+				return ec.fieldContext_SellerOrderItem_price(ctx, field)
+			case "quantity":
+				return ec.fieldContext_SellerOrderItem_quantity(ctx, field)
+			case "status":
+				return ec.fieldContext_SellerOrderItem_status(ctx, field)
+			case "shippingAddress":
+				return ec.fieldContext_SellerOrderItem_shippingAddress(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_SellerOrderItem_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SellerOrderItem", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_cancelOrderItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7197,6 +7282,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "updateOrderItemStatus":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateOrderItemStatus(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cancelOrderItem":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_cancelOrderItem(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
