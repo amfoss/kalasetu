@@ -126,6 +126,18 @@ type Seller struct {
 	ProfilePicture *string `json:"profilePicture,omitempty"`
 }
 
+type SellerOrderItem struct {
+	ID              string           `json:"id"`
+	OrderID         string           `json:"orderId"`
+	ListingID       string           `json:"listingId"`
+	Title           string           `json:"title"`
+	Price           float64          `json:"price"`
+	Quantity        int32            `json:"quantity"`
+	Status          FulfilmentStatus `json:"status"`
+	ShippingAddress *ShippingAddress `json:"shippingAddress"`
+	CreatedAt       string           `json:"createdAt"`
+}
+
 type ShippingAddress struct {
 	Name       string `json:"name"`
 	Phone      string `json:"phone"`

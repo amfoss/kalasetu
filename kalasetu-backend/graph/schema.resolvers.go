@@ -308,6 +308,23 @@ func (r *mutationResolver) Checkout(ctx context.Context, shippingAddress model.S
 	return toGraphOrder(order), nil
 }
 
+// UpdateOrderItemStatus is the resolver for the updateOrderItemStatus field.
+func (r *mutationResolver) UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	itemID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid order item id: %s", id)
+	}
+	item, err := r.orderService.UpdateItemStatus(ctx, userID, itemID, models.FulfilmentStatus(status))
+	if err != nil {
+		return nil, err
+	}
+	return toGraphSellerOrderItem(item), nil
+}
+
 // Health is the resolver for the health field.
 func (r *queryResolver) Health(ctx context.Context) (string, error) {
 	return "OK", nil
@@ -496,6 +513,28 @@ func (r *queryResolver) MyOrders(ctx context.Context) ([]*model.Order, error) {
 	result := make([]*model.Order, 0, len(orders))
 	for i := range orders {
 		result = append(result, toGraphOrder(&orders[i]))
+	}
+	return result, nil
+}
+
+// SellerOrderItems is the resolver for the sellerOrderItems field.
+func (r *queryResolver) SellerOrderItems(ctx context.Context, status *model.FulfilmentStatus) ([]*model.SellerOrderItem, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var filter *models.FulfilmentStatus
+	if status != nil {
+		st := models.FulfilmentStatus(*status)
+		filter = &st
+	}
+	items, err := r.orderService.SellerOrderItems(ctx, userID, filter)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.SellerOrderItem, 0, len(items))
+	for i := range items {
+		result = append(result, toGraphSellerOrderItem(&items[i]))
 	}
 	return result, nil
 }

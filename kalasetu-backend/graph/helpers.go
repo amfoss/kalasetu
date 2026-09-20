@@ -146,6 +146,27 @@ func toGraphCart(c *models.Cart) *model.Cart {
 	return &model.Cart{Lines: lines, Total: c.Total}
 }
 
+func toGraphShipping(s models.ShippingAddress) *model.ShippingAddress {
+	return &model.ShippingAddress{
+		Name: s.Name, Phone: s.Phone, Line1: s.Line1, Line2: s.Line2, City: s.City,
+		State: s.State, PostalCode: s.PostalCode, Country: s.Country,
+	}
+}
+
+func toGraphSellerOrderItem(it *models.SellerOrderItem) *model.SellerOrderItem {
+	return &model.SellerOrderItem{
+		ID:              strconv.Itoa(it.ID),
+		OrderID:         strconv.Itoa(it.OrderID),
+		ListingID:       strconv.Itoa(it.ListingID),
+		Title:           it.Title,
+		Price:           it.Price,
+		Quantity:        int32(it.Quantity),
+		Status:          model.FulfilmentStatus(it.Status),
+		ShippingAddress: toGraphShipping(it.Shipping),
+		CreatedAt:       it.CreatedAt.Format(time.RFC3339),
+	}
+}
+
 func toGraphOrder(o *models.Order) *model.Order {
 	items := make([]*model.OrderItem, 0, len(o.Items))
 	for _, it := range o.Items {
@@ -160,14 +181,11 @@ func toGraphOrder(o *models.Order) *model.Order {
 	}
 	s := o.Shipping
 	return &model.Order{
-		ID:    strconv.Itoa(o.ID),
-		Items: items,
-		ShippingAddress: &model.ShippingAddress{
-			Name: s.Name, Phone: s.Phone, Line1: s.Line1, Line2: s.Line2, City: s.City,
-			State: s.State, PostalCode: s.PostalCode, Country: s.Country,
-		},
-		Total:     o.Total,
-		State:     model.OrderState(o.State()),
-		CreatedAt: o.CreatedAt.Format(time.RFC3339),
+		ID:              strconv.Itoa(o.ID),
+		Items:           items,
+		ShippingAddress: toGraphShipping(s),
+		Total:           o.Total,
+		State:           model.OrderState(o.State()),
+		CreatedAt:       o.CreatedAt.Format(time.RFC3339),
 	}
 }

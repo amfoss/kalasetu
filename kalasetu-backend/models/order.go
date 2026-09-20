@@ -15,6 +15,12 @@ const (
 	StatusCancelled      FulfilmentStatus = "CANCELLED"
 )
 
+// CanAdvanceTo reports whether a Seller may move an Order Item from s to next:
+// paid to shipped to delivered, one step at a time and never backwards.
+func (s FulfilmentStatus) CanAdvanceTo(next FulfilmentStatus) bool {
+	return (s == StatusPaid && next == StatusShipped) || (s == StatusShipped && next == StatusDelivered)
+}
+
 // OrderState is derived from an Order's items; the Order stores no status.
 type OrderState string
 
@@ -56,6 +62,15 @@ type Order struct {
 	Items     []OrderItem
 	Shipping  ShippingAddress
 	Total     float64
+	CreatedAt time.Time
+}
+
+// SellerOrderItem is an OrderItem seen from its Seller's side: it carries the
+// Order's Shipping address.
+type SellerOrderItem struct {
+	OrderItem
+	OrderID   int
+	Shipping  ShippingAddress
 	CreatedAt time.Time
 }
 

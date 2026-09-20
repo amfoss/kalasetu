@@ -11,7 +11,12 @@ import (
 	"kalasetu/repos"
 )
 
-var ErrShippingAddressIncomplete = errors.New("shipping address is incomplete")
+var (
+	ErrShippingAddressIncomplete = errors.New("shipping address is incomplete")
+	ErrOrderItemNotFound         = errors.New("order item not found")
+	ErrOrderItemForbidden        = errors.New("forbidden: this order item is not for one of your listings")
+	ErrInvalidStatusTransition   = errors.New("invalid status transition: an order item goes paid, shipped, delivered, one step at a time")
+)
 
 type OrderService interface {
 	// Checkout turns the buyer's Cart into an Order, all or nothing. See
@@ -19,6 +24,13 @@ type OrderService interface {
 	Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress) (*models.Order, error)
 	// MyOrders returns the buyer's Orders, newest first.
 	MyOrders(ctx context.Context, buyerID int) ([]models.Order, error)
+	// SellerOrderItems returns the Order Items for the seller's Listings, newest
+	// first, optionally only those in status.
+	SellerOrderItems(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error)
+	// UpdateItemStatus lets the item's Seller move it forward one step (paid to
+	// shipped to delivered). Anyone else gets ErrOrderItemForbidden; skipping,
+	// repeating or reversing gets ErrInvalidStatusTransition.
+	UpdateItemStatus(ctx context.Context, sellerID, itemID int, status models.FulfilmentStatus) (*models.SellerOrderItem, error)
 }
 
 type orderService struct {
@@ -62,4 +74,34 @@ func (s *orderService) Checkout(ctx context.Context, buyerID int, ship models.Sh
 
 func (s *orderService) MyOrders(ctx context.Context, buyerID int) ([]models.Order, error) {
 	return s.repo.FindByBuyer(ctx, buyerID)
+}
+
+func (s *orderService) SellerOrderItems(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error) {
+	return s.repo.FindItemsBySeller(ctx, sellerID, status)
+}
+
+func (s *orderService) UpdateItemStatus(ctx context.Context, sellerID, itemID int, status models.FulfilmentStatus) (*models.SellerOrderItem, error) {
+	item, err := s.repo.FindItem(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if item == nil {
+		return nil, ErrOrderItemNotFound
+	}
+	if item.SellerID != sellerID {
+		return nil, ErrOrderItemForbidden
+	}
+	if !item.Status.CanAdvanceTo(status) {
+		return nil, ErrInvalidStatusTransition
+	}
+	ok, err := s.repo.AdvanceItem(ctx, itemID, item.Status, status)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		// Another request moved the item after we read it.
+		return nil, ErrInvalidStatusTransition
+	}
+	item.Status = status
+	return item, nil
 }

@@ -30,6 +30,15 @@ type OrderRepository interface {
 	Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress, pay PayFunc) (*models.Order, error)
 	// FindByBuyer returns the buyer's orders with their items, newest first, never nil.
 	FindByBuyer(ctx context.Context, buyerID int) ([]models.Order, error)
+	// FindItemsBySeller returns the Order Items for the seller's Listings, newest
+	// first, only those in status when it is non-nil. Never nil.
+	FindItemsBySeller(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error)
+	// FindItem returns the Order Item with its Order's Shipping address, or nil
+	// if there is none.
+	FindItem(ctx context.Context, id int) (*models.SellerOrderItem, error)
+	// AdvanceItem sets the item's status to to only if it is still in from, and
+	// reports whether it did, so concurrent updates cannot skip a step.
+	AdvanceItem(ctx context.Context, id int, from, to models.FulfilmentStatus) (bool, error)
 }
 
 type orderRepository struct {
@@ -191,4 +200,59 @@ func (r *orderRepository) FindByBuyer(ctx context.Context, buyerID int) ([]model
 		orders[i].Items = append(orders[i].Items, it)
 	}
 	return orders, items.Err()
+}
+
+func (r *orderRepository) FindItem(ctx context.Context, id int) (*models.SellerOrderItem, error) {
+	items, err := r.queryItems(ctx, `i.id = $1`, id)
+	if err != nil || len(items) == 0 {
+		return nil, err
+	}
+	return &items[0], nil
+}
+
+func (r *orderRepository) AdvanceItem(ctx context.Context, id int, from, to models.FulfilmentStatus) (bool, error) {
+	res, err := r.db.ExecContext(ctx, `UPDATE order_items SET status = $3 WHERE id = $1 AND status = $2`,
+		id, strings.ToLower(string(from)), strings.ToLower(string(to)))
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+func (r *orderRepository) FindItemsBySeller(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error) {
+	if status == nil {
+		return r.queryItems(ctx, `i.seller_id = $1`, sellerID)
+	}
+	return r.queryItems(ctx, `i.seller_id = $1 AND i.status = $2`, sellerID, strings.ToLower(string(*status)))
+}
+
+// queryItems selects Order Items matching where (over aliases i and o), newest first.
+func (r *orderRepository) queryItems(ctx context.Context, where string, args ...any) ([]models.SellerOrderItem, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT i.id, i.order_id, i.listing_id, i.seller_id, i.title, i.price::float8, i.quantity, i.status,
+			o.ship_name, o.ship_phone, o.ship_line1, o.ship_line2, o.ship_city, o.ship_state,
+			o.ship_postal_code, o.ship_country, o.created_at
+		FROM order_items i JOIN orders o ON o.id = i.order_id
+		WHERE `+where+`
+		ORDER BY o.created_at DESC, i.id DESC`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []models.SellerOrderItem{}
+	for rows.Next() {
+		var it models.SellerOrderItem
+		var status string
+		s := &it.Shipping
+		if err := rows.Scan(&it.ID, &it.OrderID, &it.ListingID, &it.SellerID, &it.Title, &it.Price, &it.Quantity, &status,
+			&s.Name, &s.Phone, &s.Line1, &s.Line2, &s.City, &s.State, &s.PostalCode, &s.Country, &it.CreatedAt); err != nil {
+			return nil, err
+		}
+		it.Price = math.Round(it.Price*100) / 100
+		it.Status = models.FulfilmentStatus(strings.ToUpper(status))
+		items = append(items, it)
+	}
+	return items, rows.Err()
 }

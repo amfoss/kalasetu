@@ -23,6 +23,9 @@ type Query {
   myCart: Cart!
   # The caller's Orders, newest first.
   myOrders: [Order!]!
+  # Order Items for the caller's Listings, newest first, optionally only those
+  # in `status`. Never includes other Sellers' items.
+  sellerOrderItems(status: FulfilmentStatus): [SellerOrderItem!]!
 }
 
 type Mutation {
@@ -47,6 +50,9 @@ type Mutation {
   # Turns the caller's non-empty Cart into an Order, all or nothing: any
   # unavailable line, or a failed payment, changes nothing.
   checkout(shippingAddress: ShippingAddressInput!): Order!
+  # Seller-only for that item. Forward-only, one step at a time: PAID to
+  # SHIPPED to DELIVERED; skipping, repeating or reversing is rejected.
+  updateOrderItemStatus(id: ID!, status: FulfilmentStatus!): SellerOrderItem!
 }
 
 type Event {
@@ -228,5 +234,18 @@ type Order {
     shippingAddress: ShippingAddress!
     total: Float! # INR, 2 decimals
     state: OrderState!
+    createdAt: String!
+}
+
+# An Order Item as its Seller sees it, with the Shipping address needed to ship.
+type SellerOrderItem {
+    id: ID!
+    orderId: ID!
+    listingId: ID!
+    title: String!
+    price: Float!
+    quantity: Int!
+    status: FulfilmentStatus!
+    shippingAddress: ShippingAddress!
     createdAt: String!
 }
