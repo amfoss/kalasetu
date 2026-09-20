@@ -98,6 +98,24 @@ type OnboardingInput struct {
 	ProfilePicture *string  `json:"profilePicture,omitempty"`
 }
 
+type Order struct {
+	ID              string           `json:"id"`
+	Items           []*OrderItem     `json:"items"`
+	ShippingAddress *ShippingAddress `json:"shippingAddress"`
+	Total           float64          `json:"total"`
+	State           OrderState       `json:"state"`
+	CreatedAt       string           `json:"createdAt"`
+}
+
+type OrderItem struct {
+	ID        string           `json:"id"`
+	ListingID string           `json:"listingId"`
+	Title     string           `json:"title"`
+	Price     float64          `json:"price"`
+	Quantity  int32            `json:"quantity"`
+	Status    FulfilmentStatus `json:"status"`
+}
+
 type Query struct {
 }
 
@@ -106,6 +124,28 @@ type Seller struct {
 	Name           string  `json:"name"`
 	Location       *string `json:"location,omitempty"`
 	ProfilePicture *string `json:"profilePicture,omitempty"`
+}
+
+type ShippingAddress struct {
+	Name       string `json:"name"`
+	Phone      string `json:"phone"`
+	Line1      string `json:"line1"`
+	Line2      string `json:"line2"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	PostalCode string `json:"postalCode"`
+	Country    string `json:"country"`
+}
+
+type ShippingAddressInput struct {
+	Name       string  `json:"name"`
+	Phone      string  `json:"phone"`
+	Line1      string  `json:"line1"`
+	Line2      *string `json:"line2,omitempty"`
+	City       string  `json:"city"`
+	State      string  `json:"state"`
+	PostalCode string  `json:"postalCode"`
+	Country    string  `json:"country"`
 }
 
 type UpdateEventInput struct {
@@ -180,6 +220,67 @@ func (e CartLineIssue) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type FulfilmentStatus string
+
+const (
+	FulfilmentStatusPendingPayment FulfilmentStatus = "PENDING_PAYMENT"
+	FulfilmentStatusPaid           FulfilmentStatus = "PAID"
+	FulfilmentStatusShipped        FulfilmentStatus = "SHIPPED"
+	FulfilmentStatusDelivered      FulfilmentStatus = "DELIVERED"
+	FulfilmentStatusCancelled      FulfilmentStatus = "CANCELLED"
+)
+
+var AllFulfilmentStatus = []FulfilmentStatus{
+	FulfilmentStatusPendingPayment,
+	FulfilmentStatusPaid,
+	FulfilmentStatusShipped,
+	FulfilmentStatusDelivered,
+	FulfilmentStatusCancelled,
+}
+
+func (e FulfilmentStatus) IsValid() bool {
+	switch e {
+	case FulfilmentStatusPendingPayment, FulfilmentStatusPaid, FulfilmentStatusShipped, FulfilmentStatusDelivered, FulfilmentStatusCancelled:
+		return true
+	}
+	return false
+}
+
+func (e FulfilmentStatus) String() string {
+	return string(e)
+}
+
+func (e *FulfilmentStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = FulfilmentStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid FulfilmentStatus", str)
+	}
+	return nil
+}
+
+func (e FulfilmentStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *FulfilmentStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e FulfilmentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type ListingSort string
 
 const (
@@ -232,6 +333,69 @@ func (e *ListingSort) UnmarshalJSON(b []byte) error {
 }
 
 func (e ListingSort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type OrderState string
+
+const (
+	OrderStatePendingPayment   OrderState = "PENDING_PAYMENT"
+	OrderStatePaid             OrderState = "PAID"
+	OrderStatePartiallyShipped OrderState = "PARTIALLY_SHIPPED"
+	OrderStateShipped          OrderState = "SHIPPED"
+	OrderStateDelivered        OrderState = "DELIVERED"
+	OrderStateCancelled        OrderState = "CANCELLED"
+)
+
+var AllOrderState = []OrderState{
+	OrderStatePendingPayment,
+	OrderStatePaid,
+	OrderStatePartiallyShipped,
+	OrderStateShipped,
+	OrderStateDelivered,
+	OrderStateCancelled,
+}
+
+func (e OrderState) IsValid() bool {
+	switch e {
+	case OrderStatePendingPayment, OrderStatePaid, OrderStatePartiallyShipped, OrderStateShipped, OrderStateDelivered, OrderStateCancelled:
+		return true
+	}
+	return false
+}
+
+func (e OrderState) String() string {
+	return string(e)
+}
+
+func (e *OrderState) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = OrderState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid OrderState", str)
+	}
+	return nil
+}
+
+func (e OrderState) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *OrderState) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e OrderState) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

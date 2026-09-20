@@ -287,6 +287,27 @@ func (r *mutationResolver) RemoveFromCart(ctx context.Context, listingID string)
 	return toGraphCart(cart), nil
 }
 
+// Checkout is the resolver for the checkout field.
+func (r *mutationResolver) Checkout(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.Order, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s := shippingAddress
+	ship := models.ShippingAddress{
+		Name: s.Name, Phone: s.Phone, Line1: s.Line1, City: s.City,
+		State: s.State, PostalCode: s.PostalCode, Country: s.Country,
+	}
+	if s.Line2 != nil {
+		ship.Line2 = *s.Line2
+	}
+	order, err := r.orderService.Checkout(ctx, userID, ship)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphOrder(order), nil
+}
+
 // Health is the resolver for the health field.
 func (r *queryResolver) Health(ctx context.Context) (string, error) {
 	return "OK", nil
@@ -460,6 +481,23 @@ func (r *queryResolver) MyCart(ctx context.Context) (*model.Cart, error) {
 		return nil, err
 	}
 	return toGraphCart(cart), nil
+}
+
+// MyOrders is the resolver for the myOrders field.
+func (r *queryResolver) MyOrders(ctx context.Context) ([]*model.Order, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	orders, err := r.orderService.MyOrders(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*model.Order, 0, len(orders))
+	for i := range orders {
+		result = append(result, toGraphOrder(&orders[i]))
+	}
+	return result, nil
 }
 
 // Mutation returns MutationResolver implementation.

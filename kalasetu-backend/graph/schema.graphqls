@@ -21,6 +21,8 @@ type Query {
   featuredListings(limit: Int = 8): [Listing!]!
   # The caller's Cart, in the order lines were first added.
   myCart: Cart!
+  # The caller's Orders, newest first.
+  myOrders: [Order!]!
 }
 
 type Mutation {
@@ -42,6 +44,9 @@ type Mutation {
   updateCartItem(listingId: ID!, quantity: Int!): Cart!
   # Removes the line; a Listing not in the Cart is a no-op.
   removeFromCart(listingId: ID!): Cart!
+  # Turns the caller's non-empty Cart into an Order, all or nothing: any
+  # unavailable line, or a failed payment, changes nothing.
+  checkout(shippingAddress: ShippingAddressInput!): Order!
 }
 
 type Event {
@@ -165,4 +170,63 @@ type CartLine {
 type Cart {
     lines: [CartLine!]!
     total: Float! # INR, 2 decimals; sums only lines with no issue
+}
+
+input ShippingAddressInput {
+    name: String!
+    phone: String!
+    line1: String!
+    line2: String
+    city: String!
+    state: String!
+    postalCode: String!
+    country: String!
+}
+
+type ShippingAddress {
+    name: String!
+    phone: String!
+    line1: String!
+    line2: String!
+    city: String!
+    state: String!
+    postalCode: String!
+    country: String!
+}
+
+enum FulfilmentStatus {
+    PENDING_PAYMENT
+    PAID
+    SHIPPED
+    DELIVERED
+    CANCELLED
+}
+
+# Derived from the non-cancelled Order Items; an Order has no status of its own.
+enum OrderState {
+    PENDING_PAYMENT
+    PAID
+    PARTIALLY_SHIPPED
+    SHIPPED
+    DELIVERED
+    CANCELLED
+}
+
+# title and price are snapshots taken at checkout and never change.
+type OrderItem {
+    id: ID!
+    listingId: ID!
+    title: String!
+    price: Float!
+    quantity: Int!
+    status: FulfilmentStatus!
+}
+
+type Order {
+    id: ID!
+    items: [OrderItem!]!
+    shippingAddress: ShippingAddress!
+    total: Float! # INR, 2 decimals
+    state: OrderState!
+    createdAt: String!
 }

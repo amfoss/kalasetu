@@ -1,0 +1,102 @@
+package models
+
+import (
+	"fmt"
+	"time"
+)
+
+type FulfilmentStatus string
+
+const (
+	StatusPendingPayment FulfilmentStatus = "PENDING_PAYMENT"
+	StatusPaid           FulfilmentStatus = "PAID"
+	StatusShipped        FulfilmentStatus = "SHIPPED"
+	StatusDelivered      FulfilmentStatus = "DELIVERED"
+	StatusCancelled      FulfilmentStatus = "CANCELLED"
+)
+
+// OrderState is derived from an Order's items; the Order stores no status.
+type OrderState string
+
+const (
+	OrderPendingPayment   OrderState = "PENDING_PAYMENT"
+	OrderPaid             OrderState = "PAID"
+	OrderPartiallyShipped OrderState = "PARTIALLY_SHIPPED"
+	OrderShipped          OrderState = "SHIPPED"
+	OrderDelivered        OrderState = "DELIVERED"
+	OrderCancelled        OrderState = "CANCELLED"
+)
+
+type ShippingAddress struct {
+	Name       string
+	Phone      string
+	Line1      string
+	Line2      string
+	City       string
+	State      string
+	PostalCode string
+	Country    string
+}
+
+// OrderItem holds a snapshot of the Listing's title and price (INR).
+type OrderItem struct {
+	ID        int
+	ListingID int
+	SellerID  int
+	Title     string
+	Price     float64
+	Quantity  int
+	Status    FulfilmentStatus
+}
+
+// Order's Total is INR, rounded to 2 decimals.
+type Order struct {
+	ID        int
+	BuyerID   int
+	Items     []OrderItem
+	Shipping  ShippingAddress
+	Total     float64
+	CreatedAt time.Time
+}
+
+// State summarises the items that are not cancelled.
+func (o Order) State() OrderState {
+	var live, paid, shipped, delivered int
+	for _, it := range o.Items {
+		switch it.Status {
+		case StatusCancelled:
+			continue
+		case StatusPaid:
+			paid++
+		case StatusShipped:
+			shipped++
+		case StatusDelivered:
+			delivered++
+		}
+		live++
+	}
+	switch {
+	case live == 0:
+		return OrderCancelled
+	case delivered == live:
+		return OrderDelivered
+	case shipped+delivered == live:
+		return OrderShipped
+	case shipped+delivered > 0:
+		return OrderPartiallyShipped
+	case paid == live:
+		return OrderPaid
+	}
+	return OrderPendingPayment
+}
+
+// ListingUnavailableError is returned by checkout when a Cart line cannot be
+// bought: the Listing is out of stock, short of stock, or Archived.
+type ListingUnavailableError struct {
+	ListingID int
+	Title     string
+}
+
+func (e *ListingUnavailableError) Error() string {
+	return fmt.Sprintf("%q (listing %d) is archived or does not have enough stock", e.Title, e.ListingID)
+}

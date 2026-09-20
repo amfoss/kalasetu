@@ -28,8 +28,7 @@ type App struct {
 	Router *gin.Engine
 	Srv    *handler.Server
 	Port   string
-	// Payments is not consumed until checkout lands; it is held here so the
-	// marketplace services can be wired with it.
+	// Payments is the provider checkout charges through.
 	Payments payments.PaymentProvider
 }
 
@@ -89,10 +88,13 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
 	cartRepo := repos.NewCartRepository(db)
 	cartService := services.NewCartService(cartRepo, listingRepo)
 
+	orderRepo := repos.NewOrderRepository(db)
+	orderService := services.NewOrderService(orderRepo, paymentProvider)
+
 	apiV1 := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(apiV1, authHandler)
 
-	resolver := graph.NewResolver(eventService, userService, applicationService, listingService, cartService)
+	resolver := graph.NewResolver(eventService, userService, applicationService, listingService, cartService, orderService)
 	srv := gqlSetup(resolver)
 
 	r.POST("/api/v1/graphql", middlewares.OptionalJWT(), func(c *gin.Context) {
