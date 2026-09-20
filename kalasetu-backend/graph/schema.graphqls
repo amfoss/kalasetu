@@ -9,6 +9,8 @@ type Query {
   application(id: ID!): Application
   myApplications: [Application!]!
   applicationsByOpportunity(opportunityId: ID!): [Application!]!
+  categories: [Category!]!
+  listing(id: ID!): Listing
 }
 
 type Mutation {
@@ -18,6 +20,7 @@ type Mutation {
   onboardUser(input: OnboardingInput!): Boolean!
   submitApplication(input: CreateApplicationInput!): Application!
   updateApplicationStatus(id: ID!, status: String!): Boolean!
+  createListing(input: CreateListingInput!): Listing!
 }
 
 type Event {
@@ -64,4 +67,39 @@ type Application {
 input CreateApplicationInput {
     opportunityId: ID!
     resumeUrl: String!
+}
+
+type Category {
+    id: ID!
+    name: String!
+}
+
+type Listing {
+    id: ID!
+    title: String!
+    description: String!
+    price: Float! # INR, exact to 2 decimals
+    currency: String!
+    stock: Int! # 1 is a one-of-a-kind piece
+    imageUrls: [String!]! # first is the cover
+    category: Category!
+    seller: Seller!
+    createdAt: String!
+}
+
+# The public part of a Seller's profile. Never exposes email.
+type Seller {
+    id: ID!
+    name: String!
+    location: String
+    profilePicture: String
+}
+
+input CreateListingInput {
+    title: String!
+    description: String
+    price: Float!
+    stock: Int!
+    imageUrls: [String!]!
+    categoryId: ID!
 }

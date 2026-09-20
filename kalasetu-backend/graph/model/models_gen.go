@@ -11,6 +11,11 @@ type Application struct {
 	CreatedAt     string `json:"createdAt"`
 }
 
+type Category struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type CreateApplicationInput struct {
 	OpportunityID string `json:"opportunityId"`
 	ResumeURL     string `json:"resumeUrl"`
@@ -22,6 +27,15 @@ type CreateEventInput struct {
 	Duration  string `json:"duration"`
 }
 
+type CreateListingInput struct {
+	Title       string   `json:"title"`
+	Description *string  `json:"description,omitempty"`
+	Price       float64  `json:"price"`
+	Stock       int32    `json:"stock"`
+	ImageUrls   []string `json:"imageUrls"`
+	CategoryID  string   `json:"categoryId"`
+}
+
 type Event struct {
 	ID        string  `json:"id"`
 	Name      string  `json:"name"`
@@ -30,6 +44,19 @@ type Event struct {
 	HostID    *string `json:"hostId,omitempty"`
 	HostName  *string `json:"hostName,omitempty"`
 	CreatedAt string  `json:"createdAt"`
+}
+
+type Listing struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Price       float64   `json:"price"`
+	Currency    string    `json:"currency"`
+	Stock       int32     `json:"stock"`
+	ImageUrls   []string  `json:"imageUrls"`
+	Category    *Category `json:"category"`
+	Seller      *Seller   `json:"seller"`
+	CreatedAt   string    `json:"createdAt"`
 }
 
 type Mutation struct {
@@ -45,6 +72,13 @@ type OnboardingInput struct {
 }
 
 type Query struct {
+}
+
+type Seller struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	Location       *string `json:"location,omitempty"`
+	ProfilePicture *string `json:"profilePicture,omitempty"`
 }
 
 type UpdateEventInput struct {

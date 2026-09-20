@@ -84,3 +84,41 @@ func toGraphApplications(apps []models.Application) []*model.Application {
 	}
 	return result
 }
+
+func toGraphCategories(categories []models.Category) []*model.Category {
+	result := make([]*model.Category, 0, len(categories))
+	for _, c := range categories {
+		result = append(result, &model.Category{ID: strconv.Itoa(c.ID), Name: c.Name})
+	}
+	return result
+}
+
+func toGraphListing(l *models.Listing) *model.Listing {
+	if l == nil {
+		return nil
+	}
+	var location, picture *string
+	if l.Seller.Location != "" {
+		location = &l.Seller.Location
+	}
+	if l.Seller.ProfilePicture != "" {
+		picture = &l.Seller.ProfilePicture
+	}
+	return &model.Listing{
+		ID:          strconv.Itoa(l.ID),
+		Title:       l.Title,
+		Description: l.Description,
+		Price:       l.Price,
+		Currency:    l.Currency,
+		Stock:       int32(l.Stock),
+		ImageUrls:   l.ImageURLs,
+		Category:    &model.Category{ID: strconv.Itoa(l.Category.ID), Name: l.Category.Name},
+		Seller: &model.Seller{
+			ID:             strconv.Itoa(l.Seller.ID),
+			Name:           l.Seller.Name,
+			Location:       location,
+			ProfilePicture: picture,
+		},
+		CreatedAt: l.CreatedAt.Format(time.RFC3339),
+	}
+}

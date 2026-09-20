@@ -150,6 +150,35 @@ func (r *mutationResolver) UpdateApplicationStatus(ctx context.Context, id strin
 	return true, nil
 }
 
+// CreateListing is the resolver for the createListing field.
+func (r *mutationResolver) CreateListing(ctx context.Context, input model.CreateListingInput) (*model.Listing, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	categoryID, err := strconv.Atoi(input.CategoryID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid category id: %s", input.CategoryID)
+	}
+	var description string
+	if input.Description != nil {
+		description = *input.Description
+	}
+
+	listing, err := r.listingService.Create(ctx, userID, models.CreateListingInput{
+		Title:       input.Title,
+		Description: description,
+		Price:       input.Price,
+		Stock:       int(input.Stock),
+		ImageURLs:   input.ImageUrls,
+		CategoryID:  categoryID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toGraphListing(listing), nil
+}
+
 // Health is the resolver for the health field.
 func (r *queryResolver) Health(ctx context.Context) (string, error) {
 	return "OK", nil
@@ -226,6 +255,28 @@ func (r *queryResolver) ApplicationsByOpportunity(ctx context.Context, opportuni
 		return nil, err
 	}
 	return toGraphApplications(apps), nil
+}
+
+// Categories is the resolver for the categories field.
+func (r *queryResolver) Categories(ctx context.Context) ([]*model.Category, error) {
+	categories, err := r.listingService.ListCategories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphCategories(categories), nil
+}
+
+// Listing is the resolver for the listing field.
+func (r *queryResolver) Listing(ctx context.Context, id string) (*model.Listing, error) {
+	listingID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listing id: %s", id)
+	}
+	listing, err := r.listingService.GetByID(ctx, listingID)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphListing(listing), nil
 }
 
 // Mutation returns MutationResolver implementation.

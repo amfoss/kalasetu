@@ -11,12 +11,14 @@ type Resolver struct {
 	eventService       services.EventService
 	userService        services.UserService
 	applicationService services.ApplicationService
+	listingService     services.ListingService
 }
 
-func NewResolver(eventService services.EventService, userService services.UserService, applicationService services.ApplicationService) *Resolver {
+func NewResolver(eventService services.EventService, userService services.UserService, applicationService services.ApplicationService, listingService services.ListingService) *Resolver {
 	return &Resolver{
 		eventService:       eventService,
 		userService:        userService,
 		applicationService: applicationService,
+		listingService:     listingService,
 	}
 }

@@ -83,10 +83,13 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
 	applicationRepo := repos.NewApplicationRepository(db)
 	applicationService := services.NewApplicationService(applicationRepo)
 
+	listingRepo := repos.NewListingRepository(db)
+	listingService := services.NewListingService(listingRepo)
+
 	apiV1 := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(apiV1, authHandler)
 
-	resolver := graph.NewResolver(eventService, userService, applicationService)
+	resolver := graph.NewResolver(eventService, userService, applicationService, listingService)
 	srv := gqlSetup(resolver)
 
 	r.POST("/api/v1/graphql", middlewares.OptionalJWT(), func(c *gin.Context) {
