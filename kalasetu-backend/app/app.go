@@ -1,10 +1,13 @@
 package app
 
 import (
+	"database/sql"
 	"kalasetu/config"
 	"kalasetu/graph"
 	"kalasetu/handlers"
+	"kalasetu/middlewares"
 	"kalasetu/migrations"
+	"kalasetu/payments"
 	"kalasetu/repos"
 	"kalasetu/routes"
 	"kalasetu/services"
@@ -15,6 +18,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -24,17 +28,20 @@ type App struct {
 	Router *gin.Engine
 	Srv    *handler.Server
 	Port   string
+	// Payments is not consumed until checkout lands; it is held here so the
+	// marketplace services can be wired with it.
+	Payments payments.PaymentProvider
 }
 
 const defaultPort = "8080"
 
+// NewApp is the production wiring: it reads configuration from the environment,
+// connects to and migrates the database, and builds the App around it.
 func NewApp() *App {
 	// Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		log.Println("Note: .env file not found or failed to load. Falling back to system environment variables.")
 	}
-
-	r := gin.Default()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -51,6 +58,17 @@ func NewApp() *App {
 		}
 		log.Printf("Migrations done")
 	}
+
+	app := New(db, payments.NewUnconfigured())
+	app.Port = port
+	return app
+}
+
+// New builds the App from an already-connected (and migrated) database and a
+// PaymentProvider. It touches neither the environment nor the network, so
+// tests can construct it in-process and drive app.Router directly.
+func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
+	r := gin.Default()
 
 	userRepo := repos.NewUserRepository(db)
 	refreshTokenRepo := repos.NewRefreshTokenRepository(db)
@@ -71,7 +89,14 @@ func NewApp() *App {
 	resolver := graph.NewResolver(eventService, userService, applicationService)
 	srv := gqlSetup(resolver)
 
-	return &App{Router: r, Srv: srv, Port: port}
+	r.POST("/api/v1/graphql", middlewares.OptionalJWT(), func(c *gin.Context) {
+		srv.ServeHTTP(c.Writer, c.Request)
+	})
+	r.GET("/", func(c *gin.Context) {
+		playground.Handler("GraphQL", "/api/v1/graphql").ServeHTTP(c.Writer, c.Request)
+	})
+
+	return &App{Router: r, Srv: srv, Port: defaultPort, Payments: paymentProvider}
 }
 
 func gqlSetup(resolver *graph.Resolver) *handler.Server {

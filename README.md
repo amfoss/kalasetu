@@ -168,6 +168,17 @@ docker compose up
 
 The backend automatically runs database migrations during startup.
 
+### Backend tests
+
+```bash
+cd kalasetu-backend
+make test
+```
+
+This starts a throwaway `postgres:16-alpine` container (Docker, host networking), runs `go test -v ./...`, and removes the container. Each test gets its own freshly migrated database and drives the GraphQL API in-process via `testutil.NewHarness`.
+
+To use your own Postgres instead, set `KALASETU_TEST_DATABASE_URL` to a URL for a role that can `CREATE DATABASE` and run `go test ./...`. Without it, database tests are skipped.
+
 ---
 
 ## Frontend
