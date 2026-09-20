@@ -10,7 +10,10 @@ type Query {
   myApplications: [Application!]!
   applicationsByOpportunity(opportunityId: ID!): [Application!]!
   categories: [Category!]!
+  # Archived Listings are visible only to their Seller.
   listing(id: ID!): Listing
+  # The caller's own Listings, newest first, including Archived ones.
+  myListings: [Listing!]!
   # Public browse. Archived Listings are never returned; sold-out ones (stock 0)
   # are, unless filter.inStockOnly. limit defaults to 20 and is capped at 100.
   listings(filter: ListingFilter, sort: ListingSort = NEWEST, limit: Int = 20, offset: Int = 0): [Listing!]!
@@ -26,6 +29,10 @@ type Mutation {
   submitApplication(input: CreateApplicationInput!): Application!
   updateApplicationStatus(id: ID!, status: String!): Boolean!
   createListing(input: CreateListingInput!): Listing!
+  # Owner-only and partial: omitted or null fields are left unchanged.
+  updateListing(id: ID!, input: UpdateListingInput!): Listing!
+  # Owner-only and one-way in v1. Archiving an Archived Listing is a no-op.
+  archiveListing(id: ID!): Boolean!
 }
 
 type Event {
@@ -90,6 +97,7 @@ type Listing {
     category: Category!
     seller: Seller!
     createdAt: String!
+    archived: Boolean!
 }
 
 # The public part of a Seller's profile. Never exposes email.
@@ -107,6 +115,15 @@ input CreateListingInput {
     stock: Int!
     imageUrls: [String!]!
     categoryId: ID!
+}
+
+input UpdateListingInput {
+    title: String
+    description: String
+    price: Float
+    stock: Int
+    imageUrls: [String!] # replaces all images
+    categoryId: ID
 }
 
 input ListingFilter {

@@ -19,6 +19,7 @@ type Listing struct {
 	Category    Category
 	Seller      ListingSeller
 	CreatedAt   time.Time
+	Archived    bool
 }
 
 // ListingSeller is the public part of a seller's profile; it deliberately has
@@ -37,6 +38,16 @@ type CreateListingInput struct {
 	Stock       int
 	ImageURLs   []string
 	CategoryID  int
+}
+
+// UpdateListingInput is a partial update: nil fields are left unchanged.
+type UpdateListingInput struct {
+	Title       *string
+	Description *string
+	Price       *float64
+	Stock       *int
+	ImageURLs   []string // nil leaves images unchanged
+	CategoryID  *int
 }
 
 type ListingSort string

@@ -120,6 +120,7 @@ func toGraphListing(l *models.Listing) *model.Listing {
 			ProfilePicture: picture,
 		},
 		CreatedAt: l.CreatedAt.Format(time.RFC3339),
+		Archived:  l.Archived,
 	}
 }
 

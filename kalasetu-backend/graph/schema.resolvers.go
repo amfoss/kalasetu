@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"kalasetu/graph/model"
+	"kalasetu/middlewares"
 	"kalasetu/models"
 	"strconv"
 )
@@ -179,6 +180,58 @@ func (r *mutationResolver) CreateListing(ctx context.Context, input model.Create
 	return toGraphListing(listing), nil
 }
 
+// UpdateListing is the resolver for the updateListing field.
+func (r *mutationResolver) UpdateListing(ctx context.Context, id string, input model.UpdateListingInput) (*model.Listing, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	listingID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listing id: %s", id)
+	}
+
+	patch := models.UpdateListingInput{
+		Title:       input.Title,
+		Description: input.Description,
+		Price:       input.Price,
+		ImageURLs:   input.ImageUrls,
+	}
+	if input.Stock != nil {
+		stock := int(*input.Stock)
+		patch.Stock = &stock
+	}
+	if input.CategoryID != nil {
+		categoryID, err := strconv.Atoi(*input.CategoryID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid category id: %s", *input.CategoryID)
+		}
+		patch.CategoryID = &categoryID
+	}
+
+	listing, err := r.listingService.Update(ctx, userID, listingID, patch)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphListing(listing), nil
+}
+
+// ArchiveListing is the resolver for the archiveListing field.
+func (r *mutationResolver) ArchiveListing(ctx context.Context, id string) (bool, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return false, err
+	}
+	listingID, err := strconv.Atoi(id)
+	if err != nil {
+		return false, fmt.Errorf("invalid listing id: %s", id)
+	}
+	if err := r.listingService.Archive(ctx, userID, listingID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Health is the resolver for the health field.
 func (r *queryResolver) Health(ctx context.Context) (string, error) {
 	return "OK", nil
@@ -272,11 +325,25 @@ func (r *queryResolver) Listing(ctx context.Context, id string) (*model.Listing,
 	if err != nil {
 		return nil, fmt.Errorf("invalid listing id: %s", id)
 	}
-	listing, err := r.listingService.GetByID(ctx, listingID)
+	viewerID, _ := middlewares.GetUserIDFromContext(ctx) // 0 when anonymous
+	listing, err := r.listingService.GetByID(ctx, viewerID, listingID)
 	if err != nil {
 		return nil, err
 	}
 	return toGraphListing(listing), nil
+}
+
+// MyListings is the resolver for the myListings field.
+func (r *queryResolver) MyListings(ctx context.Context) ([]*model.Listing, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	listings, err := r.listingService.MyListings(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphListings(listings), nil
 }
 
 // Listings is the resolver for the listings field.

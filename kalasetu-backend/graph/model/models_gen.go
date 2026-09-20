@@ -64,6 +64,7 @@ type Listing struct {
 	Category    *Category `json:"category"`
 	Seller      *Seller   `json:"seller"`
 	CreatedAt   string    `json:"createdAt"`
+	Archived    bool      `json:"archived"`
 }
 
 type ListingFilter struct {
@@ -100,6 +101,15 @@ type UpdateEventInput struct {
 	Name      *string `json:"name,omitempty"`
 	StartDate *string `json:"startDate,omitempty"`
 	Duration  *string `json:"duration,omitempty"`
+}
+
+type UpdateListingInput struct {
+	Title       *string  `json:"title,omitempty"`
+	Description *string  `json:"description,omitempty"`
+	Price       *float64 `json:"price,omitempty"`
+	Stock       *int32   `json:"stock,omitempty"`
+	ImageUrls   []string `json:"imageUrls,omitempty"`
+	CategoryID  *string  `json:"categoryId,omitempty"`
 }
 
 type ListingSort string

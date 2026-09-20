@@ -61,6 +61,7 @@ type ComplexityRoot struct {
 	}
 
 	Listing struct {
+		Archived    func(childComplexity int) int
 		Category    func(childComplexity int) int
 		CreatedAt   func(childComplexity int) int
 		Currency    func(childComplexity int) int
@@ -74,6 +75,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		ArchiveListing          func(childComplexity int, id string) int
 		CreateEvent             func(childComplexity int, input model.CreateEventInput) int
 		CreateListing           func(childComplexity int, input model.CreateListingInput) int
 		DeleteEvent             func(childComplexity int, id string) int
@@ -81,6 +83,7 @@ type ComplexityRoot struct {
 		SubmitApplication       func(childComplexity int, input model.CreateApplicationInput) int
 		UpdateApplicationStatus func(childComplexity int, id string, status string) int
 		UpdateEvent             func(childComplexity int, id string, input model.UpdateEventInput) int
+		UpdateListing           func(childComplexity int, id string, input model.UpdateListingInput) int
 	}
 
 	Query struct {
@@ -94,6 +97,7 @@ type ComplexityRoot struct {
 		Listing                   func(childComplexity int, id string) int
 		Listings                  func(childComplexity int, filter *model.ListingFilter, sort *model.ListingSort, limit *int32, offset *int32) int
 		MyApplications            func(childComplexity int) int
+		MyListings                func(childComplexity int) int
 	}
 
 	Seller struct {
@@ -112,6 +116,8 @@ type MutationResolver interface {
 	SubmitApplication(ctx context.Context, input model.CreateApplicationInput) (*model.Application, error)
 	UpdateApplicationStatus(ctx context.Context, id string, status string) (bool, error)
 	CreateListing(ctx context.Context, input model.CreateListingInput) (*model.Listing, error)
+	UpdateListing(ctx context.Context, id string, input model.UpdateListingInput) (*model.Listing, error)
+	ArchiveListing(ctx context.Context, id string) (bool, error)
 }
 type QueryResolver interface {
 	Health(ctx context.Context) (string, error)
@@ -122,6 +128,7 @@ type QueryResolver interface {
 	ApplicationsByOpportunity(ctx context.Context, opportunityID string) ([]*model.Application, error)
 	Categories(ctx context.Context) ([]*model.Category, error)
 	Listing(ctx context.Context, id string) (*model.Listing, error)
+	MyListings(ctx context.Context) ([]*model.Listing, error)
 	Listings(ctx context.Context, filter *model.ListingFilter, sort *model.ListingSort, limit *int32, offset *int32) ([]*model.Listing, error)
 	FeaturedListings(ctx context.Context, limit *int32) ([]*model.Listing, error)
 }
@@ -233,6 +240,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Event.StartDate(childComplexity), true
 
+	case "Listing.archived":
+		if e.ComplexityRoot.Listing.Archived == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Listing.Archived(childComplexity), true
 	case "Listing.category":
 		if e.ComplexityRoot.Listing.Category == nil {
 			break
@@ -294,6 +307,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Listing.Title(childComplexity), true
 
+	case "Mutation.archiveListing":
+		if e.ComplexityRoot.Mutation.ArchiveListing == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_archiveListing_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ArchiveListing(childComplexity, args["id"].(string)), true
 	case "Mutation.createEvent":
 		if e.ComplexityRoot.Mutation.CreateEvent == nil {
 			break
@@ -371,6 +395,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateEvent(childComplexity, args["id"].(string), args["input"].(model.UpdateEventInput)), true
+	case "Mutation.updateListing":
+		if e.ComplexityRoot.Mutation.UpdateListing == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateListing_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateListing(childComplexity, args["id"].(string), args["input"].(model.UpdateListingInput)), true
 
 	case "Query.application":
 		if e.ComplexityRoot.Query.Application == nil {
@@ -463,6 +498,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyApplications(childComplexity), true
+	case "Query.myListings":
+		if e.ComplexityRoot.Query.MyListings == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyListings(childComplexity), true
 
 	case "Seller.id":
 		if e.ComplexityRoot.Seller.ID == nil {
@@ -503,6 +544,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputListingFilter,
 		ec.unmarshalInputOnboardingInput,
 		ec.unmarshalInputUpdateEventInput,
+		ec.unmarshalInputUpdateListingInput,
 	)
 	first := true
 
@@ -597,6 +639,17 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_archiveListing_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createEvent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -677,6 +730,22 @@ func (ec *executionContext) field_Mutation_updateEvent_args(ctx context.Context,
 	}
 	args["id"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateEventInput2kalasetuᚋgraphᚋmodelᚐUpdateEventInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateListing_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateListingInput2kalasetuᚋgraphᚋmodelᚐUpdateListingInput)
 	if err != nil {
 		return nil, err
 	}
@@ -1569,6 +1638,35 @@ func (ec *executionContext) fieldContext_Listing_createdAt(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Listing_archived(ctx context.Context, field graphql.CollectedField, obj *model.Listing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Listing_archived,
+		func(ctx context.Context) (any, error) {
+			return obj.Archived, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Listing_archived(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Listing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createEvent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1906,6 +2004,8 @@ func (ec *executionContext) fieldContext_Mutation_createListing(ctx context.Cont
 				return ec.fieldContext_Listing_seller(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Listing_createdAt(ctx, field)
+			case "archived":
+				return ec.fieldContext_Listing_archived(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
 		},
@@ -1918,6 +2018,112 @@ func (ec *executionContext) fieldContext_Mutation_createListing(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createListing_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateListing(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateListing,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateListing(ctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateListingInput))
+		},
+		nil,
+		ec.marshalNListing2ᚖkalasetuᚋgraphᚋmodelᚐListing,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateListing(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Listing_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Listing_title(ctx, field)
+			case "description":
+				return ec.fieldContext_Listing_description(ctx, field)
+			case "price":
+				return ec.fieldContext_Listing_price(ctx, field)
+			case "currency":
+				return ec.fieldContext_Listing_currency(ctx, field)
+			case "stock":
+				return ec.fieldContext_Listing_stock(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Listing_imageUrls(ctx, field)
+			case "category":
+				return ec.fieldContext_Listing_category(ctx, field)
+			case "seller":
+				return ec.fieldContext_Listing_seller(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Listing_createdAt(ctx, field)
+			case "archived":
+				return ec.fieldContext_Listing_archived(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateListing_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_archiveListing(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_archiveListing,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ArchiveListing(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_archiveListing(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_archiveListing_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2288,6 +2494,8 @@ func (ec *executionContext) fieldContext_Query_listing(ctx context.Context, fiel
 				return ec.fieldContext_Listing_seller(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Listing_createdAt(ctx, field)
+			case "archived":
+				return ec.fieldContext_Listing_archived(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
 		},
@@ -2302,6 +2510,59 @@ func (ec *executionContext) fieldContext_Query_listing(ctx context.Context, fiel
 	if fc.Args, err = ec.field_Query_listing_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_myListings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_myListings,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().MyListings(ctx)
+		},
+		nil,
+		ec.marshalNListing2ᚕᚖkalasetuᚋgraphᚋmodelᚐListingᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_myListings(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Listing_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Listing_title(ctx, field)
+			case "description":
+				return ec.fieldContext_Listing_description(ctx, field)
+			case "price":
+				return ec.fieldContext_Listing_price(ctx, field)
+			case "currency":
+				return ec.fieldContext_Listing_currency(ctx, field)
+			case "stock":
+				return ec.fieldContext_Listing_stock(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Listing_imageUrls(ctx, field)
+			case "category":
+				return ec.fieldContext_Listing_category(ctx, field)
+			case "seller":
+				return ec.fieldContext_Listing_seller(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Listing_createdAt(ctx, field)
+			case "archived":
+				return ec.fieldContext_Listing_archived(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -2351,6 +2612,8 @@ func (ec *executionContext) fieldContext_Query_listings(ctx context.Context, fie
 				return ec.fieldContext_Listing_seller(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Listing_createdAt(ctx, field)
+			case "archived":
+				return ec.fieldContext_Listing_archived(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
 		},
@@ -2414,6 +2677,8 @@ func (ec *executionContext) fieldContext_Query_featuredListings(ctx context.Cont
 				return ec.fieldContext_Listing_seller(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Listing_createdAt(ctx, field)
+			case "archived":
+				return ec.fieldContext_Listing_archived(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
 		},
@@ -4415,6 +4680,71 @@ func (ec *executionContext) unmarshalInputUpdateEventInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateListingInput(ctx context.Context, obj any) (model.UpdateListingInput, error) {
+	var it model.UpdateListingInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"title", "description", "price", "stock", "imageUrls", "categoryId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "price":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("price"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Price = data
+		case "stock":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stock"))
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Stock = data
+		case "imageUrls":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageUrls"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ImageUrls = data
+		case "categoryId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("categoryId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CategoryID = data
+		}
+	}
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -4655,6 +4985,11 @@ func (ec *executionContext) _Listing(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "archived":
+			out.Values[i] = ec._Listing_archived(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -4742,6 +5077,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createListing":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createListing(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateListing":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateListing(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "archiveListing":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_archiveListing(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -4946,6 +5295,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_listing(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "myListings":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_myListings(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -5671,6 +6042,11 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 
 func (ec *executionContext) unmarshalNUpdateEventInput2kalasetuᚋgraphᚋmodelᚐUpdateEventInput(ctx context.Context, v any) (model.UpdateEventInput, error) {
 	res, err := ec.unmarshalInputUpdateEventInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateListingInput2kalasetuᚋgraphᚋmodelᚐUpdateListingInput(ctx context.Context, v any) (model.UpdateListingInput, error) {
+	res, err := ec.unmarshalInputUpdateListingInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
