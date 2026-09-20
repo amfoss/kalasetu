@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/lib/pq"
 	"kalasetu/models"
@@ -19,6 +20,11 @@ type ListingRepository interface {
 	Create(ctx context.Context, sellerID int, input models.CreateListingInput) (int, error)
 	// FindByID returns nil, nil when there is no such listing.
 	FindByID(ctx context.Context, id int) (*models.Listing, error)
+	// Search returns non-archived listings matching q, never nil.
+	Search(ctx context.Context, q models.ListingQuery) ([]models.Listing, error)
+	// Featured returns up to limit non-archived, in-stock listings in random
+	// order, never nil.
+	Featured(ctx context.Context, limit int) ([]models.Listing, error)
 }
 
 type listingRepository struct {
@@ -129,4 +135,116 @@ func (r *listingRepository) CategoryExists(ctx context.Context, id int) (bool, e
 	var ok bool
 	err := r.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM categories WHERE id = $1)`, id).Scan(&ok)
 	return ok, err
+}
+
+const listingSelect = `
+	SELECT l.id, l.title, l.description, l.price::float8, l.currency, l.stock, l.created_at,
+	       c.id, c.category_name,
+	       u.id, u.name, u.location, u.profile_picture
+	FROM listings l
+	JOIN categories c ON c.id = l.category_id
+	JOIN users u ON u.id = l.seller_id`
+
+// likeEscaper makes user text literal inside a LIKE pattern (ESCAPE '\').
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+func (r *listingRepository) Search(ctx context.Context, q models.ListingQuery) ([]models.Listing, error) {
+	where := []string{"l.archived_at IS NULL"}
+	var args []any
+	arg := func(v any) string {
+		args = append(args, v)
+		return "$" + strconv.Itoa(len(args))
+	}
+
+	if q.Query != "" {
+		p := arg("%" + likeEscaper.Replace(q.Query) + "%")
+		where = append(where, "(l.title ILIKE "+p+` ESCAPE '\' OR l.description ILIKE `+p+` ESCAPE '\')`)
+	}
+	if q.CategoryID != nil {
+		where = append(where, "l.category_id = "+arg(*q.CategoryID))
+	}
+	if q.MinPrice != nil {
+		where = append(where, "l.price >= "+arg(*q.MinPrice)+"::numeric")
+	}
+	if q.MaxPrice != nil {
+		where = append(where, "l.price <= "+arg(*q.MaxPrice)+"::numeric")
+	}
+	if q.InStockOnly {
+		where = append(where, "l.stock > 0")
+	}
+
+	order := "l.created_at DESC, l.id DESC"
+	switch q.Sort {
+	case models.SortPriceAsc:
+		order = "l.price ASC, l.id DESC"
+	case models.SortPriceDesc:
+		order = "l.price DESC, l.id DESC"
+	}
+
+	query := listingSelect + " WHERE " + strings.Join(where, " AND ") +
+		" ORDER BY " + order + " LIMIT " + arg(q.Limit) + " OFFSET " + arg(q.Offset)
+	return r.queryListings(ctx, query, args...)
+}
+
+func (r *listingRepository) Featured(ctx context.Context, limit int) ([]models.Listing, error) {
+	return r.queryListings(ctx, listingSelect+`
+		WHERE l.archived_at IS NULL AND l.stock > 0
+		ORDER BY random() LIMIT $1`, limit)
+}
+
+// queryListings runs a listingSelect query and attaches images with one extra
+// query rather than one per listing.
+func (r *listingRepository) queryListings(ctx context.Context, query string, args ...any) ([]models.Listing, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	listings := []models.Listing{}
+	for rows.Next() {
+		var l models.Listing
+		var location, picture sql.NullString
+		if err := rows.Scan(
+			&l.ID, &l.Title, &l.Description, &l.Price, &l.Currency, &l.Stock, &l.CreatedAt,
+			&l.Category.ID, &l.Category.Name,
+			&l.Seller.ID, &l.Seller.Name, &location, &picture,
+		); err != nil {
+			return nil, err
+		}
+		l.Seller.Location = location.String
+		l.Seller.ProfilePicture = picture.String
+		listings = append(listings, l)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	if len(listings) == 0 {
+		return listings, nil
+	}
+
+	ids := make([]int64, len(listings))
+	index := make(map[int]int, len(listings))
+	for i, l := range listings {
+		ids[i] = int64(l.ID)
+		index[l.ID] = i
+	}
+	imgRows, err := r.db.QueryContext(ctx,
+		`SELECT listing_id, url FROM listing_images WHERE listing_id = ANY($1) ORDER BY listing_id, position`,
+		pq.Array(ids))
+	if err != nil {
+		return nil, err
+	}
+	defer imgRows.Close()
+	for imgRows.Next() {
+		var id int
+		var url string
+		if err := imgRows.Scan(&id, &url); err != nil {
+			return nil, err
+		}
+		i := index[id]
+		listings[i].ImageURLs = append(listings[i].ImageURLs, url)
+	}
+	return listings, imgRows.Err()
 }

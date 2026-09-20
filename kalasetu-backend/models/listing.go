@@ -38,3 +38,24 @@ type CreateListingInput struct {
 	ImageURLs   []string
 	CategoryID  int
 }
+
+type ListingSort string
+
+const (
+	SortNewest    ListingSort = "NEWEST"
+	SortPriceAsc  ListingSort = "PRICE_ASC"
+	SortPriceDesc ListingSort = "PRICE_DESC"
+)
+
+// ListingQuery describes a browse of non-archived Listings. Nil filter fields
+// are unset.
+type ListingQuery struct {
+	Query       string
+	CategoryID  *int
+	MinPrice    *float64
+	MaxPrice    *float64
+	InStockOnly bool
+	Sort        ListingSort
+	Limit       int
+	Offset      int
+}

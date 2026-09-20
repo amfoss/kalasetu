@@ -11,6 +11,11 @@ type Query {
   applicationsByOpportunity(opportunityId: ID!): [Application!]!
   categories: [Category!]!
   listing(id: ID!): Listing
+  # Public browse. Archived Listings are never returned; sold-out ones (stock 0)
+  # are, unless filter.inStockOnly. limit defaults to 20 and is capped at 100.
+  listings(filter: ListingFilter, sort: ListingSort = NEWEST, limit: Int = 20, offset: Int = 0): [Listing!]!
+  # Up to `limit` in-stock, non-archived Listings in random order (capped at 100).
+  featuredListings(limit: Int = 8): [Listing!]!
 }
 
 type Mutation {
@@ -102,4 +107,18 @@ input CreateListingInput {
     stock: Int!
     imageUrls: [String!]!
     categoryId: ID!
+}
+
+input ListingFilter {
+    query: String # case-insensitive, literal match over title and description
+    categoryId: ID
+    minPrice: Float # inclusive, INR
+    maxPrice: Float # inclusive, INR
+    inStockOnly: Boolean
+}
+
+enum ListingSort {
+    NEWEST
+    PRICE_ASC
+    PRICE_DESC
 }

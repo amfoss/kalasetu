@@ -2,6 +2,13 @@
 
 package model
 
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+)
+
 type Application struct {
 	ID            string `json:"id"`
 	OpportunityID string `json:"opportunityId"`
@@ -59,6 +66,14 @@ type Listing struct {
 	CreatedAt   string    `json:"createdAt"`
 }
 
+type ListingFilter struct {
+	Query       *string  `json:"query,omitempty"`
+	CategoryID  *string  `json:"categoryId,omitempty"`
+	MinPrice    *float64 `json:"minPrice,omitempty"`
+	MaxPrice    *float64 `json:"maxPrice,omitempty"`
+	InStockOnly *bool    `json:"inStockOnly,omitempty"`
+}
+
 type Mutation struct {
 }
 
@@ -85,4 +100,61 @@ type UpdateEventInput struct {
 	Name      *string `json:"name,omitempty"`
 	StartDate *string `json:"startDate,omitempty"`
 	Duration  *string `json:"duration,omitempty"`
+}
+
+type ListingSort string
+
+const (
+	ListingSortNewest    ListingSort = "NEWEST"
+	ListingSortPriceAsc  ListingSort = "PRICE_ASC"
+	ListingSortPriceDesc ListingSort = "PRICE_DESC"
+)
+
+var AllListingSort = []ListingSort{
+	ListingSortNewest,
+	ListingSortPriceAsc,
+	ListingSortPriceDesc,
+}
+
+func (e ListingSort) IsValid() bool {
+	switch e {
+	case ListingSortNewest, ListingSortPriceAsc, ListingSortPriceDesc:
+		return true
+	}
+	return false
+}
+
+func (e ListingSort) String() string {
+	return string(e)
+}
+
+func (e *ListingSort) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ListingSort(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ListingSort", str)
+	}
+	return nil
+}
+
+func (e ListingSort) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ListingSort) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ListingSort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

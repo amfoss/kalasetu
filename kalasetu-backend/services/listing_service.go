@@ -17,11 +17,16 @@ var (
 	ErrInvalidStock    = errors.New("stock must be 0 or more")
 	ErrInvalidImages   = errors.New("a listing needs 1 to 8 images, none blank")
 	ErrCategoryUnknown = errors.New("category does not exist")
+	ErrInvalidLimit    = errors.New("limit must be at least 1")
+	ErrInvalidOffset   = errors.New("offset must be 0 or more")
 )
 
 const (
 	maxImages = 8
 	maxPrice  = 9999999999.99 // NUMERIC(12,2)
+
+	// MaxPageSize caps limit on browse queries; larger requests are clamped.
+	MaxPageSize = 100
 )
 
 type ListingService interface {
@@ -29,6 +34,10 @@ type ListingService interface {
 	Create(ctx context.Context, userID int, input models.CreateListingInput) (*models.Listing, error)
 	// GetByID returns nil, nil when there is no such listing.
 	GetByID(ctx context.Context, id int) (*models.Listing, error)
+	// Browse returns non-archived listings; a limit above MaxPageSize is clamped.
+	Browse(ctx context.Context, q models.ListingQuery) ([]models.Listing, error)
+	// Featured returns up to limit random in-stock, non-archived listings.
+	Featured(ctx context.Context, limit int) ([]models.Listing, error)
 }
 
 type listingService struct {
@@ -72,6 +81,25 @@ func (s *listingService) Create(ctx context.Context, userID int, input models.Cr
 
 func (s *listingService) GetByID(ctx context.Context, id int) (*models.Listing, error) {
 	return s.listingRepo.FindByID(ctx, id)
+}
+
+func (s *listingService) Browse(ctx context.Context, q models.ListingQuery) ([]models.Listing, error) {
+	if q.Limit < 1 {
+		return nil, ErrInvalidLimit
+	}
+	if q.Offset < 0 {
+		return nil, ErrInvalidOffset
+	}
+	q.Limit = min(q.Limit, MaxPageSize)
+	q.Query = strings.TrimSpace(q.Query)
+	return s.listingRepo.Search(ctx, q)
+}
+
+func (s *listingService) Featured(ctx context.Context, limit int) ([]models.Listing, error) {
+	if limit < 1 {
+		return nil, ErrInvalidLimit
+	}
+	return s.listingRepo.Featured(ctx, min(limit, MaxPageSize))
 }
 
 func validateListing(in models.CreateListingInput) error {

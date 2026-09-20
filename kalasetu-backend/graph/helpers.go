@@ -122,3 +122,11 @@ func toGraphListing(l *models.Listing) *model.Listing {
 		CreatedAt: l.CreatedAt.Format(time.RFC3339),
 	}
 }
+
+func toGraphListings(listings []models.Listing) []*model.Listing {
+	result := make([]*model.Listing, 0, len(listings))
+	for i := range listings {
+		result = append(result, toGraphListing(&listings[i]))
+	}
+	return result
+}

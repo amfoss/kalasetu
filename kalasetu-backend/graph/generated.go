@@ -89,8 +89,10 @@ type ComplexityRoot struct {
 		Categories                func(childComplexity int) int
 		Event                     func(childComplexity int, id string) int
 		Events                    func(childComplexity int) int
+		FeaturedListings          func(childComplexity int, limit *int32) int
 		Health                    func(childComplexity int) int
 		Listing                   func(childComplexity int, id string) int
+		Listings                  func(childComplexity int, filter *model.ListingFilter, sort *model.ListingSort, limit *int32, offset *int32) int
 		MyApplications            func(childComplexity int) int
 	}
 
@@ -120,6 +122,8 @@ type QueryResolver interface {
 	ApplicationsByOpportunity(ctx context.Context, opportunityID string) ([]*model.Application, error)
 	Categories(ctx context.Context) ([]*model.Category, error)
 	Listing(ctx context.Context, id string) (*model.Listing, error)
+	Listings(ctx context.Context, filter *model.ListingFilter, sort *model.ListingSort, limit *int32, offset *int32) ([]*model.Listing, error)
+	FeaturedListings(ctx context.Context, limit *int32) ([]*model.Listing, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -413,6 +417,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Events(childComplexity), true
+	case "Query.featuredListings":
+		if e.ComplexityRoot.Query.FeaturedListings == nil {
+			break
+		}
+
+		args, err := ec.field_Query_featuredListings_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.FeaturedListings(childComplexity, args["limit"].(*int32)), true
 	case "Query.health":
 		if e.ComplexityRoot.Query.Health == nil {
 			break
@@ -431,6 +446,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Listing(childComplexity, args["id"].(string)), true
+	case "Query.listings":
+		if e.ComplexityRoot.Query.Listings == nil {
+			break
+		}
+
+		args, err := ec.field_Query_listings_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Listings(childComplexity, args["filter"].(*model.ListingFilter), args["sort"].(*model.ListingSort), args["limit"].(*int32), args["offset"].(*int32)), true
 	case "Query.myApplications":
 		if e.ComplexityRoot.Query.MyApplications == nil {
 			break
@@ -474,6 +500,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateApplicationInput,
 		ec.unmarshalInputCreateEventInput,
 		ec.unmarshalInputCreateListingInput,
+		ec.unmarshalInputListingFilter,
 		ec.unmarshalInputOnboardingInput,
 		ec.unmarshalInputUpdateEventInput,
 	)
@@ -701,6 +728,17 @@ func (ec *executionContext) field_Query_event_args(ctx context.Context, rawArgs 
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_featuredListings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_listing_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -709,6 +747,32 @@ func (ec *executionContext) field_Query_listing_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_listings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "filter", ec.unmarshalOListingFilter2ᚖkalasetuᚋgraphᚋmodelᚐListingFilter)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "sort", ec.unmarshalOListingSort2ᚖkalasetuᚋgraphᚋmodelᚐListingSort)
+	if err != nil {
+		return nil, err
+	}
+	args["sort"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint32)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg3
 	return args, nil
 }
 
@@ -2236,6 +2300,132 @@ func (ec *executionContext) fieldContext_Query_listing(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_listing_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_listings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_listings,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Listings(ctx, fc.Args["filter"].(*model.ListingFilter), fc.Args["sort"].(*model.ListingSort), fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		},
+		nil,
+		ec.marshalNListing2ᚕᚖkalasetuᚋgraphᚋmodelᚐListingᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_listings(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Listing_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Listing_title(ctx, field)
+			case "description":
+				return ec.fieldContext_Listing_description(ctx, field)
+			case "price":
+				return ec.fieldContext_Listing_price(ctx, field)
+			case "currency":
+				return ec.fieldContext_Listing_currency(ctx, field)
+			case "stock":
+				return ec.fieldContext_Listing_stock(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Listing_imageUrls(ctx, field)
+			case "category":
+				return ec.fieldContext_Listing_category(ctx, field)
+			case "seller":
+				return ec.fieldContext_Listing_seller(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Listing_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_listings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_featuredListings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_featuredListings,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().FeaturedListings(ctx, fc.Args["limit"].(*int32))
+		},
+		nil,
+		ec.marshalNListing2ᚕᚖkalasetuᚋgraphᚋmodelᚐListingᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_featuredListings(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Listing_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Listing_title(ctx, field)
+			case "description":
+				return ec.fieldContext_Listing_description(ctx, field)
+			case "price":
+				return ec.fieldContext_Listing_price(ctx, field)
+			case "currency":
+				return ec.fieldContext_Listing_currency(ctx, field)
+			case "stock":
+				return ec.fieldContext_Listing_stock(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Listing_imageUrls(ctx, field)
+			case "category":
+				return ec.fieldContext_Listing_category(ctx, field)
+			case "seller":
+				return ec.fieldContext_Listing_seller(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Listing_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Listing", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_featuredListings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4058,6 +4248,64 @@ func (ec *executionContext) unmarshalInputCreateListingInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputListingFilter(ctx context.Context, obj any) (model.ListingFilter, error) {
+	var it model.ListingFilter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"query", "categoryId", "minPrice", "maxPrice", "inStockOnly"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "query":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Query = data
+		case "categoryId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("categoryId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CategoryID = data
+		case "minPrice":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minPrice"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinPrice = data
+		case "maxPrice":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxPrice"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxPrice = data
+		case "inStockOnly":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inStockOnly"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.InStockOnly = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputOnboardingInput(ctx context.Context, obj any) (model.OnboardingInput, error) {
 	var it model.OnboardingInput
 	if obj == nil {
@@ -4707,6 +4955,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "listings":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_listings(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "featuredListings":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_featuredListings(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -5290,6 +5582,22 @@ func (ec *executionContext) marshalNListing2kalasetuᚋgraphᚋmodelᚐListing(c
 	return ec._Listing(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNListing2ᚕᚖkalasetuᚋgraphᚋmodelᚐListingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Listing) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNListing2ᚖkalasetuᚋgraphᚋmodelᚐListing(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNListing2ᚖkalasetuᚋgraphᚋmodelᚐListing(ctx context.Context, sel ast.SelectionSet, v *model.Listing) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -5551,6 +5859,23 @@ func (ec *executionContext) marshalOEvent2ᚖkalasetuᚋgraphᚋmodelᚐEvent(ct
 	return ec._Event(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -5569,11 +5894,53 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalOInt2ᚖint32(ctx context.Context, v any) (*int32, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt32(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint32(ctx context.Context, sel ast.SelectionSet, v *int32) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt32(*v)
+	return res
+}
+
 func (ec *executionContext) marshalOListing2ᚖkalasetuᚋgraphᚋmodelᚐListing(ctx context.Context, sel ast.SelectionSet, v *model.Listing) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Listing(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOListingFilter2ᚖkalasetuᚋgraphᚋmodelᚐListingFilter(ctx context.Context, v any) (*model.ListingFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputListingFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOListingSort2ᚖkalasetuᚋgraphᚋmodelᚐListingSort(ctx context.Context, v any) (*model.ListingSort, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ListingSort)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOListingSort2ᚖkalasetuᚋgraphᚋmodelᚐListingSort(ctx context.Context, sel ast.SelectionSet, v *model.ListingSort) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

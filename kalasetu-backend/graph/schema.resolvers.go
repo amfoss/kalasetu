@@ -279,6 +279,54 @@ func (r *queryResolver) Listing(ctx context.Context, id string) (*model.Listing,
 	return toGraphListing(listing), nil
 }
 
+// Listings is the resolver for the listings field.
+func (r *queryResolver) Listings(ctx context.Context, filter *model.ListingFilter, sort *model.ListingSort, limit *int32, offset *int32) ([]*model.Listing, error) {
+	q := models.ListingQuery{Sort: models.SortNewest, Limit: 20}
+	if filter != nil {
+		if filter.Query != nil {
+			q.Query = *filter.Query
+		}
+		if filter.CategoryID != nil {
+			id, err := strconv.Atoi(*filter.CategoryID)
+			if err != nil {
+				return nil, fmt.Errorf("invalid category id: %s", *filter.CategoryID)
+			}
+			q.CategoryID = &id
+		}
+		q.MinPrice = filter.MinPrice
+		q.MaxPrice = filter.MaxPrice
+		q.InStockOnly = filter.InStockOnly != nil && *filter.InStockOnly
+	}
+	if sort != nil {
+		q.Sort = models.ListingSort(*sort)
+	}
+	if limit != nil {
+		q.Limit = int(*limit)
+	}
+	if offset != nil {
+		q.Offset = int(*offset)
+	}
+
+	listings, err := r.listingService.Browse(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphListings(listings), nil
+}
+
+// FeaturedListings is the resolver for the featuredListings field.
+func (r *queryResolver) FeaturedListings(ctx context.Context, limit *int32) ([]*model.Listing, error) {
+	n := 8
+	if limit != nil {
+		n = int(*limit)
+	}
+	listings, err := r.listingService.Featured(ctx, n)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphListings(listings), nil
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
