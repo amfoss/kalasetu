@@ -20,6 +20,9 @@ type ListingRepository interface {
 	Create(ctx context.Context, sellerID int, input models.CreateListingInput) (int, error)
 	// FindByID returns nil, nil when there is no such listing.
 	FindByID(ctx context.Context, id int) (*models.Listing, error)
+	// FindByIDs returns the listings that exist, archived ones included, in no
+	// particular order, never nil.
+	FindByIDs(ctx context.Context, ids []int) ([]models.Listing, error)
 	// FindBySeller returns all of the seller's listings, archived ones included,
 	// newest first, never nil.
 	FindBySeller(ctx context.Context, sellerID int) ([]models.Listing, error)
@@ -126,6 +129,14 @@ func (r *listingRepository) FindByID(ctx context.Context, id int) (*models.Listi
 		l.ImageURLs = append(l.ImageURLs, url)
 	}
 	return l, rows.Err()
+}
+
+func (r *listingRepository) FindByIDs(ctx context.Context, ids []int) ([]models.Listing, error) {
+	ids64 := make([]int64, len(ids))
+	for i, id := range ids {
+		ids64[i] = int64(id)
+	}
+	return r.queryListings(ctx, listingSelect+" WHERE l.id = ANY($1)", pq.Array(ids64))
 }
 
 func (r *listingRepository) FindBySeller(ctx context.Context, sellerID int) ([]models.Listing, error) {

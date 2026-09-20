@@ -131,3 +131,17 @@ func toGraphListings(listings []models.Listing) []*model.Listing {
 	}
 	return result
 }
+
+func toGraphCart(c *models.Cart) *model.Cart {
+	lines := make([]*model.CartLine, 0, len(c.Lines))
+	for i := range c.Lines {
+		l := &c.Lines[i]
+		line := &model.CartLine{Listing: toGraphListing(&l.Listing), Quantity: int32(l.Quantity)}
+		if l.Issue != "" {
+			issue := model.CartLineIssue(l.Issue)
+			line.Issue = &issue
+		}
+		lines = append(lines, line)
+	}
+	return &model.Cart{Lines: lines, Total: c.Total}
+}

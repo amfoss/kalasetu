@@ -232,6 +232,61 @@ func (r *mutationResolver) ArchiveListing(ctx context.Context, id string) (bool,
 	return true, nil
 }
 
+// AddToCart is the resolver for the addToCart field.
+func (r *mutationResolver) AddToCart(ctx context.Context, listingID string, quantity *int32) (*model.Cart, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := strconv.Atoi(listingID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listing id: %s", listingID)
+	}
+	qty := 1
+	if quantity != nil {
+		qty = int(*quantity)
+	}
+	cart, err := r.cartService.Add(ctx, userID, id, qty)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphCart(cart), nil
+}
+
+// UpdateCartItem is the resolver for the updateCartItem field.
+func (r *mutationResolver) UpdateCartItem(ctx context.Context, listingID string, quantity int32) (*model.Cart, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := strconv.Atoi(listingID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listing id: %s", listingID)
+	}
+	cart, err := r.cartService.SetQuantity(ctx, userID, id, int(quantity))
+	if err != nil {
+		return nil, err
+	}
+	return toGraphCart(cart), nil
+}
+
+// RemoveFromCart is the resolver for the removeFromCart field.
+func (r *mutationResolver) RemoveFromCart(ctx context.Context, listingID string) (*model.Cart, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := strconv.Atoi(listingID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid listing id: %s", listingID)
+	}
+	cart, err := r.cartService.Remove(ctx, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphCart(cart), nil
+}
+
 // Health is the resolver for the health field.
 func (r *queryResolver) Health(ctx context.Context) (string, error) {
 	return "OK", nil
@@ -392,6 +447,19 @@ func (r *queryResolver) FeaturedListings(ctx context.Context, limit *int32) ([]*
 		return nil, err
 	}
 	return toGraphListings(listings), nil
+}
+
+// MyCart is the resolver for the myCart field.
+func (r *queryResolver) MyCart(ctx context.Context) (*model.Cart, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cart, err := r.cartService.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphCart(cart), nil
 }
 
 // Mutation returns MutationResolver implementation.

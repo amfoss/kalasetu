@@ -19,6 +19,8 @@ type Query {
   listings(filter: ListingFilter, sort: ListingSort = NEWEST, limit: Int = 20, offset: Int = 0): [Listing!]!
   # Up to `limit` in-stock, non-archived Listings in random order (capped at 100).
   featuredListings(limit: Int = 8): [Listing!]!
+  # The caller's Cart, in the order lines were first added.
+  myCart: Cart!
 }
 
 type Mutation {
@@ -33,6 +35,13 @@ type Mutation {
   updateListing(id: ID!, input: UpdateListingInput!): Listing!
   # Owner-only and one-way in v1. Archiving an Archived Listing is a no-op.
   archiveListing(id: ID!): Boolean!
+  # Adds quantity (default 1) to the line for the Listing, creating it if needed.
+  # The resulting quantity may not exceed the Listing's stock.
+  addToCart(listingId: ID!, quantity: Int = 1): Cart!
+  # Sets the line's quantity; 0 removes the line, negatives are rejected.
+  updateCartItem(listingId: ID!, quantity: Int!): Cart!
+  # Removes the line; a Listing not in the Cart is a no-op.
+  removeFromCart(listingId: ID!): Cart!
 }
 
 type Event {
@@ -138,4 +147,22 @@ enum ListingSort {
     NEWEST
     PRICE_ASC
     PRICE_DESC
+}
+
+# Why a Cart line cannot currently be bought.
+enum CartLineIssue {
+    ARCHIVED
+    OUT_OF_STOCK
+    INSUFFICIENT_STOCK # some stock left, but less than the quantity in the Cart
+}
+
+type CartLine {
+    listing: Listing! # current details
+    quantity: Int!
+    issue: CartLineIssue # null when the line can be bought as it stands
+}
+
+type Cart {
+    lines: [CartLine!]!
+    total: Float! # INR, 2 decimals; sums only lines with no issue
 }

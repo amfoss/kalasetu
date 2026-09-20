@@ -18,6 +18,17 @@ type Application struct {
 	CreatedAt     string `json:"createdAt"`
 }
 
+type Cart struct {
+	Lines []*CartLine `json:"lines"`
+	Total float64     `json:"total"`
+}
+
+type CartLine struct {
+	Listing  *Listing       `json:"listing"`
+	Quantity int32          `json:"quantity"`
+	Issue    *CartLineIssue `json:"issue,omitempty"`
+}
+
 type Category struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -110,6 +121,63 @@ type UpdateListingInput struct {
 	Stock       *int32   `json:"stock,omitempty"`
 	ImageUrls   []string `json:"imageUrls,omitempty"`
 	CategoryID  *string  `json:"categoryId,omitempty"`
+}
+
+type CartLineIssue string
+
+const (
+	CartLineIssueArchived          CartLineIssue = "ARCHIVED"
+	CartLineIssueOutOfStock        CartLineIssue = "OUT_OF_STOCK"
+	CartLineIssueInsufficientStock CartLineIssue = "INSUFFICIENT_STOCK"
+)
+
+var AllCartLineIssue = []CartLineIssue{
+	CartLineIssueArchived,
+	CartLineIssueOutOfStock,
+	CartLineIssueInsufficientStock,
+}
+
+func (e CartLineIssue) IsValid() bool {
+	switch e {
+	case CartLineIssueArchived, CartLineIssueOutOfStock, CartLineIssueInsufficientStock:
+		return true
+	}
+	return false
+}
+
+func (e CartLineIssue) String() string {
+	return string(e)
+}
+
+func (e *CartLineIssue) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CartLineIssue(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CartLineIssue", str)
+	}
+	return nil
+}
+
+func (e CartLineIssue) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CartLineIssue) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CartLineIssue) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type ListingSort string
