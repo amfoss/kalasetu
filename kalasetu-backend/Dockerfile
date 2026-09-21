@@ -19,6 +19,8 @@ RUN go test -v ./...
 # Deploying into a lean image
 FROM alpine:latest AS release-stage
 
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /app
 
 COPY --from=build-stage /kalasetu .

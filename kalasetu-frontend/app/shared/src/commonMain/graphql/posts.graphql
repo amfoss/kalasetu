@@ -1,0 +1,22 @@
+query GetPosts($limit: Int, $offset: Int) {
+    posts(limit: $limit, offset: $offset) {
+        id
+        userId
+        userName
+        content
+        media {
+            id
+            postId
+            url
+            mediaType
+            sortOrder
+            createdAt
+        }
+        categoryId
+        categoryName
+        likeCount
+        commentCount
+        isLikedByMe
+        createdAt
+    }
+}

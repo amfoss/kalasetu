@@ -1,0 +1,3 @@
+mutation OnboardUser($input: OnboardingInput!) {
+    onboardUser(input: $input)
+}

@@ -28,8 +28,10 @@ import androidx.compose.ui.unit.dp
 fun ProfileScreen(
     presenter: ProfilePresenter,
     userId: String,
+    posts: List<DraftPost>,
     onEditProfile: () -> Unit = {},
     onShare: () -> Unit = {},
+    onBack: () -> Unit = {},
 ) {
     var uiState by remember { mutableStateOf(ProfileUiState()) }
 
@@ -72,14 +74,19 @@ fun ProfileScreen(
         }
 
         uiState.profile != null -> {
+            val backendPosts = uiState.profile!!.recentPosts.map { post -> profilePostToDraftPost(post) }
+            val displayPosts = (posts + backendPosts).distinctBy { it.content }
+
             ProfileContent(
                 profile = uiState.profile!!,
+                posts = displayPosts,
                 selectedTab = uiState.selectedTab,
                 onTabSelected = { tab ->
                     uiState = uiState.copy(selectedTab = tab)
                 },
                 onEditProfile = onEditProfile,
-                onShare = onShare
+                onShare = onShare,
+                onBack = onBack
             )
         }
     }
@@ -89,9 +96,11 @@ fun ProfileScreen(
 private fun ProfileContent(
     profile: Profile,
     selectedTab: ProfileTab,
+    posts: List<DraftPost>,
     onTabSelected: (ProfileTab) -> Unit,
     onEditProfile: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onBack: () -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -104,7 +113,8 @@ private fun ProfileContent(
         ProfileHeader(
             profile = profile,
             onEditProfile = onEditProfile,
-            onShare = onShare
+            onShare = onShare,
+            onBack = onBack
         )
 
         ProfileInfo(profile = profile)
@@ -124,7 +134,10 @@ private fun ProfileContent(
 
         when (selectedTab) {
             ProfileTab.POSTS ->
-                PostsTabContent(profile)
+                PostsTabContent(
+                    profile = profile,
+                    posts = posts
+                )
 
             ProfileTab.SKILLS ->
                 SkillsTabContent(profile.skills)

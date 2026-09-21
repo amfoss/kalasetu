@@ -3,6 +3,7 @@ package com.example.kalasetu.features.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -23,20 +24,6 @@ import com.example.kalasetu.theme.SubtitleGray
 fun AuthLogoHeader() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("KalaSetu", fontSize = 36.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "LOGO",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Medium
-            )
-        }
     }
 }
 
@@ -46,6 +33,7 @@ fun AuthTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isPassword: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
         value = value,
@@ -59,7 +47,14 @@ fun AuthTextField(
         },
         singleLine = true,
         shape = RoundedCornerShape(8.dp),
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+
+        keyboardOptions = keyboardOptions,
+
+        visualTransformation = if (isPassword)
+            PasswordVisualTransformation()
+        else
+            VisualTransformation.None,
+
         modifier = Modifier.fillMaxWidth(),
     )
 }

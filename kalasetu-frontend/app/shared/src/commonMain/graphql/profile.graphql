@@ -1,0 +1,30 @@
+query GetProfile($userId: ID!) {
+    profile(userId: $userId) {
+        id
+        name
+        location
+        bio
+        avatarUrl
+        email
+        followers
+        following
+        artworksCount
+        totalLikes
+        skills
+        artworksImages
+        achievements {
+            title
+            description
+            iconType
+        }
+        recentPosts {
+            id
+            content
+            mediaType
+            mediaUri
+            likeCount
+            commentCount
+            createdAt
+        }
+    }
+}

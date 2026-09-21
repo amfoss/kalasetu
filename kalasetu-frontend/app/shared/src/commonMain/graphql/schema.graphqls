@@ -1,0 +1,238 @@
+# GraphQL schema
+
+scalar Upload
+
+type Query {
+  health: String!
+  events: [Event!]!
+  event(id: ID!): Event
+  userEvents: [Event!]!
+  application(id: ID!): Application
+  myApplications: [Application!]!
+  applicationsByOpportunity(opportunityId: ID!): [Application!]!
+  applicationsByEvent(eventId: ID!): [Application!]!
+  opportunitiesByEvent(eventId: ID!): [Opportunity!]!
+  opportunity(id: ID!): Opportunity
+  profile(userId: ID!): Profile!
+}
+
+enum AchievementIcon {
+  TOP_CREATOR
+  FOLLOWERS
+  FEATURED
+}
+
+type Achievement {
+  title: String!
+  description: String!
+  iconType: AchievementIcon!
+}
+
+type ProfilePost {
+  id: ID!
+  content: String!
+  mediaType: String
+  mediaUri: String
+  likeCount: Int!
+  commentCount: Int!
+  createdAt: String!
+}
+
+type Profile {
+  id: ID!
+  name: String!
+  username: String!
+  location: String!
+  bio: String!
+  avatarUrl: String
+  email: String!
+  followers: Int!
+  following: Int!
+  artworksCount: Int!
+  totalLikes: Int!
+  skills: [String!]!
+  artworksImages: [String!]!
+  achievements: [Achievement!]!
+  recentPosts: [ProfilePost!]!
+}
+
+type Mutation {
+  createEvent(input: CreateEventInput!): Event!
+  updateEvent(id: ID!, input: UpdateEventInput!): Event!
+  deleteEvent(id: ID!): Boolean!
+  onboardUser(input: OnboardingInput!): Boolean!
+  submitApplication(input: CreateApplicationInput!): Application!
+  updateApplicationStatus(id: ID!, status: String!): Boolean!
+  createOpportunity(input: CreateOpportunityInput!): Opportunity!
+  updateOpportunity(id: ID!, input: UpdateOpportunityInput!): Opportunity!
+}
+
+type Event {
+  id: ID!
+  name: String!
+  startDate: String!
+  duration: String!
+  hostId: ID
+  hostName: String
+  createdAt: String!
+}
+
+input CreateEventInput {
+  name: String!
+  startDate: String!
+  duration: String!
+}
+
+input UpdateEventInput {
+  name: String
+  startDate: String
+  duration: String
+}
+
+input OnboardingInput {
+  name: String!
+  role: String!
+  location: String!
+  labels: [String!]
+  bio: String
+  profilePicture: String
+}
+
+type Post {
+  id: ID!
+  userId: ID!
+  userName: String!
+  content: String!
+  media: [PostMedia!]!
+  categoryId: ID
+  categoryName: String
+  likeCount: Int!
+  commentCount: Int!
+  isLikedByMe: Boolean!
+  createdAt: String!
+}
+
+type PostMedia {
+  id: ID!
+  postId: ID!
+  url: String!
+  mediaType: String!
+  sortOrder: Int!
+  createdAt: String!
+}
+
+type Author {
+  id: ID!
+  name: String!
+}
+
+type Comment {
+  id: ID!
+  postId: ID!
+  userId: ID!
+  userName: String!
+  content: String!
+  createdAt: String!
+}
+
+input CreatePostInput {
+  content: String!
+  media: [Upload!]
+  categoryId: ID
+}
+
+input UpdatePostInput {
+  content: String
+  categoryId: ID
+}
+
+input CreateCommentInput {
+  postId: ID!
+  content: String!
+}
+
+input UpdateCommentInput {
+  content: String!
+}
+
+extend type Mutation {
+  createPost(input: CreatePostInput!): Post!
+  updatePost(id: ID!, input: UpdatePostInput!): Post!
+  deletePost(id: ID!): Boolean!
+  likePost(id: ID!): Boolean!
+  unLikePost(id: ID!): Boolean!
+  addComment(input: CreateCommentInput!): Comment!
+  updateComment(id: ID!, input: UpdateCommentInput!): Comment!
+  deleteComment(id: ID!): Boolean!
+}
+
+extend type Query {
+  posts(limit: Int, offset: Int): [Post!]!
+  postsByUser(userId: ID!, limit: Int, offset: Int): [Post!]!
+  post(id: ID!): Post
+  likesOfPost(id: ID!): [Author!]!
+  commentsOfPost(id: ID!): [Comment!]!
+}
+
+type Opportunity {
+    id: ID!
+    eventId: ID!
+    title: String!
+    description: String
+    categories: [String!]!
+    location: String
+    startDate: String
+    endDate: String
+    totalPositions: Int!
+    openSlots: Int!
+    applicationsCount: Int!
+    status: String!
+    createdAt: String!
+}
+
+input CreateOpportunityInput {
+    eventId: ID!
+    title: String!
+    description: String
+    categories: [String!]
+    location: String
+    startDate: String
+    endDate: String
+    totalPositions: Int
+    status: String
+}
+
+input UpdateOpportunityInput {
+    title: String
+    description: String
+    categories: [String!]
+    location: String
+    startDate: String
+    endDate: String
+    totalPositions: Int
+    status: String
+}
+
+type Application {
+    id: ID!
+    opportunityId: ID
+    eventId: ID!
+    applierId: ID!
+    applicantName: String
+    applicantEmail: String
+    applicantPhone: String
+    description: String
+    resumeUrl: String
+    status: String!
+    createdAt: String!
+}
+
+input CreateApplicationInput {
+    opportunityId: ID
+    eventId: ID!
+    applicantName: String
+    applicantEmail: String
+    applicantPhone: String
+    description: String
+    resumeUrl: String
+}

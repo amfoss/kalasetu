@@ -1,0 +1,34 @@
+mutation CreateEvent($input : CreateEventInput! ){
+    createEvent(input: $input){
+        id,
+        name,
+        hostName,
+        hostId,
+        startDate,
+        duration
+    }
+}
+
+query GetEvents {
+    events {
+        id
+        name
+        hostId
+        hostName
+        startDate
+        duration
+        createdAt
+    }
+}
+
+query GetUserEvents {
+    userEvents {
+        id
+        name
+        hostId
+        hostName
+        startDate
+        duration
+        createdAt
+    }
+}

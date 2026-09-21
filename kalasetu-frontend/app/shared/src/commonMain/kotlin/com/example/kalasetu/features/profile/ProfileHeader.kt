@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,6 +42,7 @@ fun ProfileHeader(
     profile: Profile,
     onEditProfile: () -> Unit,
     onShare: () -> Unit,
+    onBack: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -50,12 +53,22 @@ fun ProfileHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(110.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        listOf(LightPurple, BrandPurple),
+                .background(LightPurple
                     ),
-                ),
         )
+
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 40.dp, start = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = Color.White
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -187,11 +200,13 @@ fun ProfileInfo(profile: Profile) {
 
         Spacer(Modifier.height(2.dp))
 
-        Text(
-            text = "@${profile.username}",
-            fontSize = 14.sp,
-            color = TextSecondary,
-        )
+        if (profile.username.isNotBlank()) {
+            Text(
+                text = "@${profile.username}",
+                fontSize = 14.sp,
+                color = TextSecondary,
+            )
+        }
 
         if (profile.location.isNotBlank()) {
             Spacer(Modifier.height(6.dp))

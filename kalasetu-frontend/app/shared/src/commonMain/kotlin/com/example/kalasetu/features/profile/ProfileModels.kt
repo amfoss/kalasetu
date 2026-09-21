@@ -17,6 +17,7 @@ data class Profile(
     val skills: List<String> = emptyList(),
     val artworksImages: List<String> = emptyList(),
     val achievements: List<Achievement> = emptyList(),
+    val recentPosts: List<ProfilePost> = emptyList(),
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -42,7 +43,8 @@ data class Profile(
         if (isVerified != other.isVerified) return false
         if (skills != other.skills) return false
         if (artworksImages != other.artworksImages) return false
-        return achievements == other.achievements
+        if (achievements != other.achievements) return false
+        return recentPosts == other.recentPosts
     }
 
     override fun hashCode(): Int {
@@ -62,9 +64,20 @@ data class Profile(
         result = (31 * result) + skills.hashCode()
         result = (31 * result) + artworksImages.hashCode()
         result = (31 * result) + achievements.hashCode()
+        result = (31 * result) + recentPosts.hashCode()
         return result
     }
 }
+
+data class ProfilePost(
+    val id: String = "",
+    val content: String = "",
+    val mediaType: String? = null,
+    val mediaUri: String? = null,
+    val likeCount: Int = 0,
+    val commentCount: Int = 0,
+    val createdAt: String = "",
+)
 
 data class Achievement(
     val title: String,

@@ -32,6 +32,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.fillMaxSize
+import coil3.compose.AsyncImage
+import kotlinx.datetime.Instant
+import kotlin.time.Clock
+
+object RelativeTime {
+    fun format(createdAt: String): String = try {
+        val diffMinutes = (Clock.System.now().toEpochMilliseconds() - Instant.parse(createdAt).toEpochMilliseconds()) / 60_000L
+        when {
+            diffMinutes < 1 -> "Just now"
+            diffMinutes < 60 -> "${diffMinutes}m ago"
+            diffMinutes < 24 * 60 -> "${diffMinutes / 60}h ago"
+            else -> "${diffMinutes / (24 * 60)}d ago"
+        }
+    } catch (e: Exception) {
+        "Just now"
+    }
+}
 
 data class DraftPost(
     val timeAgo: String,
@@ -39,42 +62,31 @@ data class DraftPost(
     val likes: Int,
     val comments: Int,
     val hasImage: Boolean,
+    val imageBytes: List<ByteArray> = emptyList(),
+    val imageUrl: String? = null,
+)
+
+internal fun profilePostToDraftPost(post: ProfilePost): DraftPost = DraftPost(
+    timeAgo = RelativeTime.format(post.createdAt),
+    content = post.content,
+    likes = post.likeCount,
+    comments = post.commentCount,
+    hasImage = post.mediaUri != null,
+    imageUrl = post.mediaUri
 )
 
 @Composable
-fun PostsTabContent(profile: Profile) {
-
-    val draftPosts = listOf(
-        DraftPost(
-            timeAgo = "2 days ago",
-            content = "Just finished a new character design for an upcoming indie game project.",
-            likes = 124,
-            comments = 18,
-            hasImage = true,
-        ),
-        DraftPost(
-            timeAgo = "1 week ago",
-            content = "Thrilled to share that my artwork has been selected for the Digital Arts Monthly showcase!",
-            likes = 342,
-            comments = 47,
-            hasImage = false,
-        ),
-        DraftPost(
-            timeAgo = "2 weeks ago",
-            content = "Working on a new series of illustrations inspired by classical Indian art forms.",
-            likes = 89,
-            comments = 12,
-            hasImage = true
-        )
-    )
-
+fun PostsTabContent(
+    profile: Profile,
+    posts: List<DraftPost>
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        draftPosts.forEach { post ->
+        posts.forEach { post ->
             PostCard(
                 profile = profile,
                 post = post
@@ -146,23 +158,23 @@ fun PostCard(
                 modifier = Modifier.padding(horizontal = 14.dp)
             )
 
-            if (post.hasImage) {
+            if (post.imageUrl != null) {
                 Spacer(Modifier.height(10.dp))
 
-                Box(
+                AsyncImage(
+                    model = post.imageUrl,
+                    contentDescription = "Post image",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
-                        .background(Purple100),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Post image",
-                        tint = LightPurple,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                        .height(300.dp)
+                )
+            } else if (post.imageBytes.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+
+                PostImageCarousel(
+                    imageBytes = post.imageBytes
+                )
             }
 
             Spacer(Modifier.height(10.dp))
@@ -228,7 +240,59 @@ fun PostCard(
         }
     }
 }
+@Composable
+private fun PostImageCarousel(
+    imageBytes: List<ByteArray>
+) {
+    val pagerState = rememberPagerState(
+        pageCount = { imageBytes.size }
+    )
 
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+
+            AsyncImage(
+                model = imageBytes[page],
+                contentDescription = "Post image ${page + 1}",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Page indicators
+        if (imageBytes.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                repeat(imageBytes.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(
+                                if (index == pagerState.currentPage)
+                                    BrandPurple
+                                else
+                                    androidx.compose.ui.graphics.Color.Gray.copy(
+                                        alpha = 0.6f
+                                    )
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
 @Composable
 fun PostActionButton(
     icon: ImageVector,

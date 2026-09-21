@@ -11,6 +11,7 @@ type EventRepository interface {
 	Create(ctx context.Context, event *models.Event) (*models.Event, error)
 	FindByID(ctx context.Context, id int) (*models.Event, error)
 	List(ctx context.Context) ([]models.Event, error)
+	ListByUser(ctx context.Context, userID int) ([]models.Event, error)
 	Update(ctx context.Context, id int, input models.UpdateEventInput) error
 	Delete(ctx context.Context, id int) error
 }
@@ -89,6 +90,34 @@ func (r *eventRepository) List(ctx context.Context) ([]models.Event, error) {
 	return events, rows.Err()
 }
 
+
+// Update sets only the fields that were provided (For NULL input, COALESCE keeps the existing value).
+func (r *eventRepository) ListByUser(ctx context.Context, userID int) ([]models.Event, error) {
+	query := `
+		SELECT ` + eventSelectColumns + `
+		FROM events e
+		LEFT JOIN users u ON u.id = e.host_id
+		WHERE e.host_id = $1
+		ORDER BY e.start_date DESC, e.id DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := []models.Event{}
+
+	for rows.Next() {
+		var e models.Event
+		if err := rows.Scan(&e.ID,&e.Name,&e.StartDate,&e.Duration,&e.HostID,&e.HostName,&e.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
 // Update sets only the fields that were provided (NULL input → COALESCE keeps the existing value).
 func (r *eventRepository) Update(ctx context.Context, id int, input models.UpdateEventInput) error {
 	query := `

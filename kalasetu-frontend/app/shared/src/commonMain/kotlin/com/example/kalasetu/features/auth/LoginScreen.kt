@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AuthLoginScreen(
-    onLogin: () -> Unit,
+    onLogin: (String, String) -> Unit,
     onSignUp: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -78,14 +78,19 @@ fun AuthLoginScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            AuthTextField(value = username, onValueChange = { username = it }, placeholder = "Username or email address")
+            AuthTextField(value = username, onValueChange = { username = it }, placeholder = "Email address")
             Spacer(Modifier.height(16.dp))
             AuthTextField(value = password, onValueChange = { password = it }, placeholder = "Password", isPassword = true)
 
             Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = onLogin,
+                onClick = {
+                    onLogin(
+                        username.trim(),
+                        password
+                    )
+                },
                 enabled = canLogin,
                 modifier = Modifier
                     .fillMaxWidth()

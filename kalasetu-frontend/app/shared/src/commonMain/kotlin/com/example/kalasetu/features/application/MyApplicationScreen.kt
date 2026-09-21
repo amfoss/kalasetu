@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 private val PurplePrimary = Color(0xFF7466F1)
 private val LightPurpleBg = Color(0xFFF4F1FF)
 private val TextDark = Color(0xFF1E1E1E)
@@ -43,7 +44,12 @@ fun MyApplicationsScreen(
     onApplicationClick: (String) -> Unit,
     onBack: () -> Unit,
     onSwitchRole: () -> Unit = {},
-) {
+    onMenuClick: () -> Unit
+){
+    LaunchedEffect(Unit) {
+        ApplicationRepository.fetchMyApplications()
+    }
+
     val allApplications by ApplicationStore.applications.collectAsState()
     val tabs = listOf("All", "Pending", "Accepted", "Rejected")
     var selectedTab by remember { mutableStateOf(0) }
@@ -59,22 +65,23 @@ fun MyApplicationsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("My Applications", fontWeight = FontWeight.Bold) },
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "My Applications",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                        )
+                    IconButton(onClick = onMenuClick) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
                     }
                 },
-                actions = {
-                    TextButton(onClick = onSwitchRole) {
-                        Text("Org", color = PurplePrimary, fontWeight = FontWeight.Bold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White
+                )
             )
         },
         containerColor = Color.White,
@@ -89,41 +96,52 @@ fun MyApplicationsScreen(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.White,
                 contentColor = PurplePrimary,
-                edgePadding = 16.dp,
+                edgePadding = 0.dp,
                 divider = {},
-                indicator = {},
+                indicator = { tabPositions ->
+
+                    Box(
+                        modifier = Modifier
+                            .tabIndicatorOffset(tabPositions[selectedTab])
+                            .wrapContentSize(Alignment.Center)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(35.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(PurplePrimary)
+                        )
+                    }
+                }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTab == index,
-                        onClick = { selectedTab = index },
+                        onClick = {
+                            selectedTab = index
+                        },
                         text = {
                             Text(
-                                title,
+                                text = title,
                                 fontSize = 14.sp,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == index) PurplePrimary else TextGray,
+                                fontWeight = if (selectedTab == index) {
+                                    FontWeight.Bold
+                                } else {
+                                    FontWeight.Normal
+                                },
+                                color = if (selectedTab == index) {
+                                    PurplePrimary
+                                } else {
+                                    TextGray
+                                }
                             )
-                        },
+                        }
                     )
                 }
             }
 
             // Purple underline for active tab
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                val activeIndex = selectedTab
-                repeat(tabs.size) { i ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(3.dp)
-                            .background(
-                                if (i == activeIndex) PurplePrimary else Color.Transparent,
-                                RoundedCornerShape(2.dp),
-                            ),
-                    )
-                }
-            }
 
             Spacer(Modifier.height(12.dp))
 

@@ -18,27 +18,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Menu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistHomeScreen(
     viewModel: EventListViewModel,
     onEventClick: (String) -> Unit,
-    onSwitchRole: () -> Unit = {}
+    onSwitchRole: () -> Unit = {},
+    onMenuClick: () -> Unit
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
-
+    LaunchedEffect(Unit) {
+        viewModel.loadEvents(isOrganizer = false)
+    }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Discover Events", fontWeight = FontWeight.Bold) },
-                actions = {
-                    // 🔧 DEV ONLY: quick role switch
-                    TextButton(onClick = onSwitchRole) {
-                        Text("Org", color = PurplePrimary, fontWeight = FontWeight.Bold)
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "Discover Events",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White
+                )
             )
         },
         containerColor = Color.White

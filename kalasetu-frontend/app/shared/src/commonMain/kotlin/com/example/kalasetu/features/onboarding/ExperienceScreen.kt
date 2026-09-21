@@ -22,9 +22,9 @@ import com.example.kalasetu.theme.UnselectedBorder
 
 @Composable
 fun ExperienceScreen(
-    onNext: () -> Unit,
+    onNext: (String) -> Unit,
     onBack: () -> Unit,
-) {
+){
     var selectedLevel by remember { mutableStateOf("") }
     val levels = listOf("Just Starting Out", "Learning & Growing", "Experienced", "Professional")
 
@@ -95,7 +95,7 @@ fun ExperienceScreen(
         }
 
         IconButton(
-            onClick = onNext,
+            onClick = { onNext(selectedLevel) },
             enabled = selectedLevel.isNotBlank(),
             modifier = Modifier
                 .align(Alignment.BottomEnd)

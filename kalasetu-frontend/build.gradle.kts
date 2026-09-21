@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     // this is necessary to avoid the plugins to be loaded multiple times
     // in each subproject's classloader
@@ -8,4 +10,21 @@ plugins {
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.ktor) apply false
+}
+
+
+val envFile = rootProject.file(".env")
+
+fun getEnvValue(key: String): String {
+    if (!envFile.exists()) {
+        throw GradleException(".env file not found")
+    }
+
+    return envFile.readLines()
+        .firstOrNull { line ->
+            line.trim().startsWith("$key=")
+        }
+        ?.substringAfter("=")
+        ?.trim()
+        ?: throw GradleException("$key not found in .env")
 }

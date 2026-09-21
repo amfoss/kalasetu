@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.filled.Menu
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,20 +31,35 @@ fun OrganizerHomeScreen(
     viewModel: EventListViewModel,
     onCreateEvent: () -> Unit,
     onEventClick: (String) -> Unit,
-    onSwitchRole: () -> Unit = {},
+    onMenuClick: () -> Unit
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
-
+    LaunchedEffect(Unit) {
+        viewModel.loadEvents(isOrganizer = true)
+    }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("My Events", fontWeight = FontWeight.Bold) },
-                actions = {
-                    TextButton(onClick = onSwitchRole) {
-                        Text("Artist", color = PurplePrimary, fontWeight = FontWeight.Bold)
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "My Events",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = onMenuClick
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Open menu"
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White
+                )
             )
         },
         floatingActionButton = {

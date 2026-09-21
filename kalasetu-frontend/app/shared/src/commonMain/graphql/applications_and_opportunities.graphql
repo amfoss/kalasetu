@@ -1,0 +1,143 @@
+mutation CreateOpportunity($input: CreateOpportunityInput!) {
+    createOpportunity(input: $input) {
+        id
+        eventId
+        title
+        description
+        categories
+        location
+        startDate
+        endDate
+        totalPositions
+        openSlots
+        applicationsCount
+        status
+        createdAt
+    }
+}
+
+query GetOpportunitiesByEvent($eventId: ID!) {
+    opportunitiesByEvent(eventId: $eventId) {
+        id
+        eventId
+        title
+        description
+        categories
+        location
+        startDate
+        endDate
+        totalPositions
+        openSlots
+        applicationsCount
+        status
+        createdAt
+    }
+}
+
+mutation SubmitApplication($input: CreateApplicationInput!) {
+    submitApplication(input: $input) {
+        id
+        opportunityId
+        eventId
+        applierId
+        applicantName
+        applicantEmail
+        applicantPhone
+        description
+        resumeUrl
+        status
+        createdAt
+    }
+}
+
+query GetMyApplications {
+    myApplications {
+        id
+        opportunityId
+        eventId
+        applierId
+        applicantName
+        applicantEmail
+        applicantPhone
+        description
+        resumeUrl
+        status
+        createdAt
+    }
+}
+
+query GetApplicationsByEvent($eventId: ID!) {
+    applicationsByEvent(eventId: $eventId) {
+        id
+        opportunityId
+        eventId
+        applierId
+        applicantName
+        applicantEmail
+        applicantPhone
+        description
+        resumeUrl
+        status
+        createdAt
+    }
+}
+
+mutation UpdateApplicationStatus($id: ID!, $status: String!) {
+    updateApplicationStatus(id: $id, status: $status)
+}
+
+mutation UpdateOpportunity($id: ID!, $input: UpdateOpportunityInput!) {
+    updateOpportunity(id: $id, input: $input) {
+        id
+        eventId
+        title
+        description
+        categories
+        location
+        startDate
+        endDate
+        totalPositions
+        openSlots
+        applicationsCount
+        status
+        createdAt
+    }
+}
+
+mutation DeletePost($id: ID!) {
+    deletePost(id: $id)
+}
+
+mutation LikePost($id: ID!) {
+    likePost(id: $id)
+}
+
+mutation UnLikePost($id: ID!) {
+    unLikePost(id: $id)
+}
+
+mutation AddComment($input: CreateCommentInput!) {
+    addComment(input: $input) {
+        id
+        postId
+        userId
+        userName
+        content
+        createdAt
+    }
+}
+
+mutation DeleteComment($id: ID!) {
+    deleteComment(id: $id)
+}
+
+query CommentsOfPost($id: ID!) {
+    commentsOfPost(id: $id) {
+        id
+        postId
+        userId
+        userName
+        content
+        createdAt
+    }
+}

@@ -32,8 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-
-
+import com.example.kalasetu.features.opportunity.OpportunityRepository
+import com.example.kalasetu.features.opportunity.OpportunityStatus
+import com.example.kalasetu.features.opportunity.OpportunityStore
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -41,10 +42,19 @@ fun EventDetailsScreen(
     eventId: String,
     viewModel: EventListViewModel,
     onBack: () -> Unit,
-    onApply: () -> Unit
+    onApplyOpportunity: (opportunityId: String, opportunityTitle: String) -> Unit = { _, _ -> }
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     val event = events.firstOrNull { it.id == eventId }
+
+    LaunchedEffect(eventId) {
+        OpportunityRepository.fetchOpportunitiesForEvent(eventId)
+    }
+
+    val allOpps by OpportunityStore.opportunities.collectAsState()
+    val eventOpps = remember(allOpps, eventId) {
+        allOpps.filter { it.eventId == eventId && it.status != OpportunityStatus.DRAFT }
+    }
 
     // ─── Gallery overlay state ───
     var showGallery by remember { mutableStateOf(false) }
@@ -69,7 +79,7 @@ fun EventDetailsScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Event not found", color = TextGray)
+                Text("Event not found", color = Color(0xFF757575))
             }
             return@Scaffold
         }
@@ -84,7 +94,7 @@ fun EventDetailsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)    // 16:9 to match create form
+                    .aspectRatio(16f / 9f)
             ) {
                 if (event.coverImageBytes != null) {
                     AsyncImage(
@@ -97,61 +107,39 @@ fun EventDetailsScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(LightPurpleBg),
+                            .background(Color(0xFFF4F1FF)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Image,
-                            contentDescription = null,
-                            tint = PurplePrimary,
-                            modifier = Modifier.size(64.dp)
-                        )
+                        Icon(Icons.Default.Image, contentDescription = null, tint = Color(0xFF7466F1), modifier = Modifier.size(48.dp))
                     }
                 }
             }
 
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(event.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                Spacer(Modifier.height(6.dp))
-                Text("By ${event.organizerName}", fontSize = 14.sp, color = TextGray)
-
-                Spacer(Modifier.height(16.dp))
-
-                DetailRow(Icons.Default.CalendarToday, "Duration", formatEventDuration(event.startDate, event.endDate))
-                DetailRow(Icons.Default.LocationOn, "Location", event.location.ifBlank { "Not provided" })
-                DetailRow(Icons.Default.Email, "Email", event.email.ifBlank { "Not provided" })
-                DetailRow(Icons.Default.Phone, "Phone", event.phone.ifBlank { "Not provided" })
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(event.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                Spacer(Modifier.height(8.dp))
+                Text(event.description, fontSize = 14.sp, color = Color(0xFF757575), lineHeight = 20.sp)
 
                 Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = Color(0xFFEEEEEE))
+                Spacer(Modifier.height(16.dp))
 
-                Text("About this Event", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                Spacer(Modifier.height(8.dp))
-                Text(event.description, fontSize = 14.sp, color = TextGray, lineHeight = 20.sp)
+                DetailRow(icon = Icons.Default.CalendarToday, label = "Dates", value = formatEventDuration(event.startDate, event.endDate))
+                DetailRow(icon = Icons.Default.LocationOn, label = "Location", value = event.location.ifBlank { "Location TBD" })
 
-                // ─── Categories ───
-                if (event.categories.isNotEmpty()) {
-                    Spacer(Modifier.height(24.dp))
-                    Text("Looking for", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Spacer(Modifier.height(12.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        event.categories.forEach { category ->
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(LightPurpleBg)
-                                    .border(1.dp, PurplePrimary, RoundedCornerShape(50))
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                            ) {
-                                Text(category, fontSize = 14.sp, color = PurplePrimary, fontWeight = FontWeight.Medium)
-                            }
-                        }
+                if (event.organizerName.isNotBlank() || event.email.isNotBlank()) {
+                    Spacer(Modifier.height(16.dp))
+                    Text("Organizer Contact", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                    Spacer(Modifier.height(8.dp))
+                    if (event.organizerName.isNotBlank()) {
+                        DetailRow(icon = Icons.Default.Email, label = "Organizer", value = event.organizerName)
+                    }
+                    if (event.email.isNotBlank()) {
+                        DetailRow(icon = Icons.Default.Email, label = "Email", value = event.email)
                     }
                 }
 
-                // ─── Gallery (tappable thumbnails) ───
+                // ─── Gallery ───
                 if (event.galleryBytes.isNotEmpty()) {
                     Spacer(Modifier.height(24.dp))
                     Row(
@@ -159,11 +147,11 @@ fun EventDetailsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Gallery", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                        Text("Gallery", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
                         Text(
                             "${event.galleryBytes.size} photo${if (event.galleryBytes.size > 1) "s" else ""}",
                             fontSize = 12.sp,
-                            color = TextGray,
+                            color = Color(0xFF757575),
                         )
                     }
                     Spacer(Modifier.height(12.dp))
@@ -192,13 +180,55 @@ fun EventDetailsScreen(
 
                 Spacer(Modifier.height(32.dp))
 
-                Button(
-                    onClick = onApply,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
-                ) {
-                    Text("Apply Now", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                // ─── Open Opportunities Section ───
+                Text("Open Opportunities", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                Spacer(Modifier.height(8.dp))
+                if (eventOpps.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        color = Color(0xFFF8F9FA),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            "No active opportunities currently open for this event.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF757575),
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        eventOpps.forEach { opp ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F1FF))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(opp.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                                    if (opp.description.isNotBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(opp.description, fontSize = 13.sp, color = Color(0xFF757575))
+                                    }
+                                    Spacer(Modifier.height(12.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("${opp.openSlots} positions open", fontSize = 12.sp, color = Color(0xFF7466F1), fontWeight = FontWeight.Bold)
+                                        Button(
+                                            onClick = { onApplyOpportunity(opp.id, opp.title) },
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7466F1))
+                                        ) {
+                                            Text("Apply", fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -230,18 +260,17 @@ private fun DetailRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(LightPurpleBg),
+                .background(Color(0xFFF4F1FF)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = PurplePrimary, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = Color(0xFF7466F1), modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, fontSize = 13.sp, color = TextGray, modifier = Modifier.width(72.dp))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextDark, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 13.sp, color = Color(0xFF757575), modifier = Modifier.width(72.dp))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1E1E1E), modifier = Modifier.weight(1f))
     }
 }
 
-// ─── Full-screen swipeable gallery ───
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FullScreenGallery(
@@ -249,19 +278,13 @@ fun FullScreenGallery(
     startIndex: Int,
     onClose: () -> Unit
 ) {
-    if (images.isEmpty()) return
-
-    val pagerState = rememberPagerState(
-        initialPage = startIndex.coerceIn(0, images.size - 1),
-        pageCount = { images.size }
-    )
+    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { images.size })
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color.Black.copy(alpha = 0.95f))
     ) {
-        // Swipeable pager
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize()
@@ -272,71 +295,39 @@ fun FullScreenGallery(
             ) {
                 AsyncImage(
                     model = images[page],
-                    contentDescription = "Gallery image ${page + 1}",
+                    contentDescription = "Full image ${page + 1}",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
         }
 
-        // Close button (top-right)
-        Box(
+        Surface(
+            color = Color.Black.copy(alpha = 0.4f),
+            shape = CircleShape,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 40.dp, end = 16.dp)
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.5f))
-                .clickable { onClose() },
-            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
         }
 
-        // Page counter (top-left)
-        Box(
+        Surface(
+            color = Color.Black.copy(alpha = 0.4f),
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 48.dp, start = 16.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Color.Black.copy(alpha = 0.5f))
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "${pagerState.currentPage + 1} / ${images.size}",
+                "${pagerState.currentPage + 1} / ${images.size}",
                 color = Color.White,
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
-        }
-
-        // Dot indicators (bottom)
-        if (images.size > 1) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 48.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.4f))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                repeat(images.size) { index ->
-                    val isActive = pagerState.currentPage == index
-                    Box(
-                        modifier = Modifier
-                            .size(if (isActive) 8.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(if (isActive) Color.White else Color.White.copy(alpha = 0.4f))
-                    )
-                }
-            }
         }
     }
 }

@@ -1,26 +1,43 @@
 package graph
 
-// This file will not be regenerated automatically.
-//
-// It serves as dependency injection for your app, add any dependencies you require
-// here.
-
 import "kalasetu/services"
 
 type Resolver struct {
 	eventService       services.EventService
-	userService        services.UserService
 	applicationService services.ApplicationService
+	opportunityService services.OpportunityService
+	postService        services.PostService
+	commentService     services.CommentService
+	likeService        services.LikeService
+	userService        services.UserService
+	profileService     services.ProfileService
 	listingService     services.ListingService
 	cartService        services.CartService
 	orderService       services.OrderService
 }
 
-func NewResolver(eventService services.EventService, userService services.UserService, applicationService services.ApplicationService, listingService services.ListingService, cartService services.CartService, orderService services.OrderService) *Resolver {
+func NewResolver(
+	eventService services.EventService,
+	applicationService services.ApplicationService,
+	opportunityService services.OpportunityService,
+	postService services.PostService,
+	commentService services.CommentService,
+	likeService services.LikeService,
+	userService services.UserService,
+	profileService services.ProfileService,
+	listingService services.ListingService,
+	cartService services.CartService,
+	orderService services.OrderService,
+) *Resolver {
 	return &Resolver{
 		eventService:       eventService,
-		userService:        userService,
 		applicationService: applicationService,
+		opportunityService: opportunityService,
+		postService:        postService,
+		commentService:     commentService,
+		likeService:        likeService,
+		userService:        userService,
+		profileService:     profileService,
 		listingService:     listingService,
 		cartService:        cartService,
 		orderService:       orderService,

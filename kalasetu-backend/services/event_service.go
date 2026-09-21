@@ -15,6 +15,7 @@ var (
 type EventService interface {
 	Create(ctx context.Context, userID int, input models.CreateEventInput) (*models.Event, error)
 	List(ctx context.Context) ([]models.Event, error)
+	ListByUser(ctx context.Context, userID int) ([]models.Event, error)
 	GetByID(ctx context.Context, id int) (*models.Event, error)
 	Update(ctx context.Context, userID, id int, input models.UpdateEventInput) (*models.Event, error)
 	Delete(ctx context.Context, userID, id int) error
@@ -44,6 +45,9 @@ func (s *eventService) Create(ctx context.Context, userID int, input models.Crea
 
 func (s *eventService) List(ctx context.Context) ([]models.Event, error) {
 	return s.eventRepo.List(ctx)
+}
+func (s *eventService) ListByUser(ctx context.Context, userID int) ([]models.Event, error) {
+	return s.eventRepo.ListByUser(ctx, userID)
 }
 
 func (s *eventService) GetByID(ctx context.Context, id int) (*models.Event, error) {

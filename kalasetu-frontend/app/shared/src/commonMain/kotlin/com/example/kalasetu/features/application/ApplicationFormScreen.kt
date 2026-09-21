@@ -49,6 +49,8 @@ private val ErrorRed = Color(0xFFD32F2F)
 fun ApplicationFormScreen(
     eventId: String,
     eventTitle: String,
+    opportunityId: String = "",
+    opportunityTitle: String = "",
     eventCoverBytes: ByteArray?,
     applicantAvatarBytes: ByteArray?,
     onBack: () -> Unit,
@@ -95,21 +97,32 @@ fun ApplicationFormScreen(
             FloatingActionButton(
                 onClick = {
                     if (isFormValid) {
-                        val application = Application(
-                            id = "app_${Random.nextLong()}",
-                            eventId = eventId,
-                            eventTitle = eventTitle,
-                            eventCoverBytes = eventCoverBytes,
-                            applicantName = applicantName.trim(),
-                            description = reason.trim(),
-                            coverImageBytes = portfolioBytes,
-                            applicantAvatarBytes = applicantAvatarBytes,
-                            portfolioFileName = portfolioFileName ?: "",
-                            email = email.trim(),
-                            phone = phone.trim(),
-                            status = ApplicationStatus.PENDING,
-                        )
-                        onSubmit(application)
+                        scope.launch {
+                            val res = ApplicationRepository.submitApplication(
+                                eventId = eventId,
+                                opportunityId = opportunityId.ifBlank { null },
+                                applicantName = applicantName.trim(),
+                                email = email.trim(),
+                                phone = phone.trim(),
+                                description = reason.trim(),
+                                resumeUrl = portfolioFileName ?: "portfolio.pdf"
+                            )
+                            val application = res.getOrNull() ?: Application(
+                                id = "app_${Random.nextLong()}",
+                                eventId = eventId,
+                                eventTitle = eventTitle,
+                                eventCoverBytes = eventCoverBytes,
+                                applicantName = applicantName.trim(),
+                                description = reason.trim(),
+                                coverImageBytes = portfolioBytes,
+                                applicantAvatarBytes = applicantAvatarBytes,
+                                portfolioFileName = portfolioFileName ?: "",
+                                email = email.trim(),
+                                phone = phone.trim(),
+                                status = ApplicationStatus.PENDING,
+                            )
+                            onSubmit(application)
+                        }
                     } else {
                         showErrors = true
                     }

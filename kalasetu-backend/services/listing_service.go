@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrNotSeller        = errors.New("only artists and craftspeople can sell listings")
-	ErrTitleRequired    = errors.New("title is required")
+	ErrNotSeller = errors.New("only artists and craftspeople can sell listings")
+	// ErrTitleRequired is declared in opportunity_service.go (same package).
 	ErrInvalidPrice     = errors.New("price must be greater than 0 and at most 9999999999.99")
 	ErrInvalidStock     = errors.New("stock must be 0 or more")
 	ErrInvalidImages    = errors.New("a listing needs 1 to 8 images, none blank")

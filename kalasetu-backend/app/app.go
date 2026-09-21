@@ -11,6 +11,7 @@ import (
 	"kalasetu/repos"
 	"kalasetu/routes"
 	"kalasetu/services"
+	"kalasetu/storage"
 	"log"
 	"os"
 
@@ -82,6 +83,37 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
 	applicationRepo := repos.NewApplicationRepository(db)
 	applicationService := services.NewApplicationService(applicationRepo)
 
+	opportunityRepo := repos.NewOpportunityRepository(db)
+	opportunityService := services.NewOpportunityService(opportunityRepo)
+
+	postRepo := repos.NewPostRepository(db)
+	postMediaRepo := repos.NewPostMediaRepository(db)
+
+	var objectStorage storage.ObjectStorage
+	storageCfg := config.LoadStorageConfig()
+	if storageCfg.IsConfigured() {
+		s3Storage, err := storage.NewS3(storageCfg)
+		if err != nil {
+			log.Printf("Warning: failed to initialise object storage: %v. Post media uploads will fail at runtime.", err)
+		} else {
+			objectStorage = s3Storage
+			log.Printf("Object storage configured for bucket %q in region %q", storageCfg.Bucket, storageCfg.Region)
+		}
+	} else {
+		log.Println("Note: object storage (AWS_BUCKET) is not configured. Posts can be created without media.")
+	}
+
+	postService := services.NewPostService(postRepo, postMediaRepo, objectStorage)
+
+	commentRepo := repos.NewCommentRepository(db)
+	commentService := services.NewCommentService(commentRepo)
+
+	likeRepo := repos.NewLikeRepository(db)
+	likeService := services.NewLikeService(likeRepo)
+
+	profileRepo := repos.NewProfileRepository(db)
+	profileService := services.NewProfileService(profileRepo, objectStorage)
+
 	listingRepo := repos.NewListingRepository(db)
 	listingService := services.NewListingService(listingRepo)
 
@@ -94,7 +126,7 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
 	apiV1 := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(apiV1, authHandler)
 
-	resolver := graph.NewResolver(eventService, userService, applicationService, listingService, cartService, orderService)
+	resolver := graph.NewResolver(eventService, applicationService, opportunityService, postService, commentService, likeService, userService, profileService, listingService, cartService, orderService)
 	srv := gqlSetup(resolver)
 
 	r.POST("/api/v1/graphql", middlewares.OptionalJWT(), func(c *gin.Context) {
@@ -113,6 +145,7 @@ func gqlSetup(resolver *graph.Resolver) *handler.Server {
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.MultipartForm{})
 
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 

@@ -27,9 +27,9 @@ private data class InterestSection(val title: String, val options: List<String>)
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InterestsScreen(
-    onNext: () -> Unit,
+    onNext: (List<String>) -> Unit,
     onBack: () -> Unit,
-) {
+    ) {
     val selectedPills = remember { mutableStateMapOf<String, Boolean>() }
     val scrollState = rememberScrollState()
 
@@ -121,7 +121,14 @@ fun InterestsScreen(
         }
 
         IconButton(
-            onClick = onNext,
+            onClick = {
+                val selectedInterests = selectedPills
+                    .filter { it.value }
+                    .keys
+                    .toList()
+
+                onNext(selectedInterests)
+            },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .size(56.dp)

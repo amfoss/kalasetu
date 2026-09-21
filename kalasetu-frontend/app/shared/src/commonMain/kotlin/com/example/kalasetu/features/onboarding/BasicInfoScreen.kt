@@ -22,7 +22,7 @@ fun OnboardingBasicInfoScreen(
     onNext: (String, String) -> Unit,
     onBack: () -> Unit,
 ) {
-    var name by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     val roles = listOf("Artist", "Event Organizer", "Audience")
@@ -61,7 +61,7 @@ fun OnboardingBasicInfoScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "What's your name?",
+                text = "What's your bio?",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -69,12 +69,13 @@ fun OnboardingBasicInfoScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                placeholder = { Text("e.g. John Doe") },
-                singleLine = true,
+                value = bio,
+                onValueChange = { bio = it },
+                placeholder = { Text("e.g. Love Drawing..") },
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth(),
+                minLines = 5,
+                maxLines = 8
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -120,8 +121,8 @@ fun OnboardingBasicInfoScreen(
 
         IconButton(
             onClick = {
-                if (name.isNotBlank() && selectedRole.isNotBlank()) {
-                    onNext(name, selectedRole)
+                if (bio.isNotBlank() && selectedRole.isNotBlank()) {
+                    onNext(bio, selectedRole)
                 }
             },
             modifier = Modifier

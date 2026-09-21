@@ -16,7 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kalasetu.theme.SubtitleGray
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingLocationScreen(
@@ -74,48 +73,44 @@ fun OnboardingLocationScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-            ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = {
-                        query = it
-                        expanded = true
-                    },
-                    placeholder = { Text("Enter your Country") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Filled.LocationOn,
-                            contentDescription = null,
-                        )
-                    },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
-                )
+//            ExposedDropdownMenuBox(
+//                expanded = expanded,
+//                onExpandedChange = { expanded = it },
+//            ) {
+            TextField(
+                value = query,
+                onValueChange = {
+                    query = it
+                },
+                placeholder = { Text("Enter your Country") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                    )
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
 
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.height(300.dp),
-                ) {
-                    filteredCountries.forEach { country ->
-                        DropdownMenuItem(
-                            text = { Text(country) },
-                            onClick = {
-                                query = country
-                                expanded = false
-                            },
-                        )
-                    }
-                }
+//                ExposedDropdownMenu(
+//                    expanded = expanded,
+//                    onDismissRequest = { expanded = false },
+//                    modifier = Modifier.height(300.dp),
+//                ) {
+//                    filteredCountries.forEach { country ->
+//                        DropdownMenuItem(
+//                            text = { Text(country) },
+//                            onClick = {
+//                                query = country
+//                                expanded = false
+//                            },
+//                        )
+//                    }
+//                }
             }
-        }
+
 
         IconButton(
             onClick = { selectedCountry?.let { onNext(it) } },
@@ -136,5 +131,4 @@ fun OnboardingLocationScreen(
                        else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
+    }}
