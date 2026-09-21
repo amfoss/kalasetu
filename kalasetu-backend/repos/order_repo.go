@@ -16,15 +16,20 @@ var (
 	ErrCheckoutOwnBuy = errors.New("you cannot buy your own listing")
 	// ErrItemNotCancellable means the Order Item is not in the paid state.
 	ErrItemNotCancellable = errors.New("order item cannot be cancelled: only paid items can be")
+	// ErrCancelNotCommitted means the refund was accepted but the cancellation
+	// did not commit, so the item is still paid and the stock not restocked.
+	// Retrying is safe: the refund carries a reference the provider deduplicates.
+	ErrCancelNotCommitted = errors.New("order item refunded but the cancellation did not commit")
 )
 
 // PayFunc charges amountCents for reference (the order id) and returns the
 // charge id. It runs inside the checkout transaction.
 type PayFunc func(ctx context.Context, amountCents int64, reference string) (chargeID string, err error)
 
-// RefundFunc refunds amountCents of the Order's charge. It runs inside the
-// cancellation transaction.
-type RefundFunc func(ctx context.Context, chargeID string, amountCents int64) error
+// RefundFunc refunds amountCents of the Order's charge. reference identifies
+// the refund so a repeat of one already accepted is a no-op. It runs inside
+// the cancellation transaction.
+type RefundFunc func(ctx context.Context, chargeID string, amountCents int64, reference string) error
 
 type OrderRepository interface {
 	// Checkout turns the buyer's Cart into an Order in a single transaction:
@@ -50,7 +55,8 @@ type OrderRepository interface {
 	// refund for the item's price times quantity. Any failure, including
 	// refund's (returned unchanged), changes nothing. It returns
 	// ErrItemNotCancellable if the item is not paid, so of two concurrent
-	// cancels only one refunds.
+	// cancels only one refunds, and ErrCancelNotCommitted if the refund was
+	// accepted but the transaction did not commit.
 	CancelItem(ctx context.Context, id int, refund RefundFunc) error
 }
 
@@ -261,10 +267,15 @@ func (r *orderRepository) CancelItem(ctx context.Context, id int, refund RefundF
 	if _, err := tx.ExecContext(ctx, `UPDATE listings SET stock = stock + $2 WHERE id = $1`, listingID, quantity); err != nil {
 		return err
 	}
-	if err := refund(ctx, chargeID.String, priceCents*int64(quantity)); err != nil {
+	if err := refund(ctx, chargeID.String, priceCents*int64(quantity), fmt.Sprintf("item_%d", id)); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		// The money is already back with the buyer but nothing else changed.
+		// Say so, so a retry is not mistaken for a fresh cancellation.
+		return fmt.Errorf("%w: %w", ErrCancelNotCommitted, err)
+	}
+	return nil
 }
 
 func (r *orderRepository) FindItemsBySeller(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error) {

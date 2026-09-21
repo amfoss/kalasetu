@@ -46,3 +46,34 @@ func TestFakeCanBeToldToFail(t *testing.T) {
 		t.Fatalf("recorded successful charges = %d, want 1", got)
 	}
 }
+
+func TestFakeRefundsOnlyOncePerReference(t *testing.T) {
+	f := paymentstest.NewFake()
+	ctx := context.Background()
+
+	res, err := f.Charge(ctx, payments.ChargeRequest{Amount: 500, Reference: "order_1"})
+	if err != nil {
+		t.Fatalf("charge: %v", err)
+	}
+	req := payments.RefundRequest{ChargeID: res.ChargeID, Amount: 500, Reference: "item_1"}
+
+	// A repeat of a refund already accepted succeeds without refunding again,
+	// so a cancellation retried after a failed commit cannot pay out twice.
+	for i := range 2 {
+		if err := f.Refund(ctx, req); err != nil {
+			t.Fatalf("refund %d: %v", i+1, err)
+		}
+	}
+	if got := len(f.Refunds()); got != 1 {
+		t.Errorf("recorded refunds = %d, want 1", got)
+	}
+
+	// A different reference is a different refund.
+	req.Reference = "item_2"
+	if err := f.Refund(ctx, req); err != nil {
+		t.Fatalf("second item: %v", err)
+	}
+	if got := len(f.Refunds()); got != 2 {
+		t.Errorf("recorded refunds = %d, want 2", got)
+	}
+}

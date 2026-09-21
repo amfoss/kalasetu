@@ -22,8 +22,9 @@ type ChargeResult struct {
 }
 
 type RefundRequest struct {
-	ChargeID string
-	Amount   int64
+	ChargeID  string
+	Amount    int64
+	Reference string // caller's identifier for this refund, e.g. an order item id
 }
 
 // ErrNotConfigured is returned by the provider used when no real gateway is wired in.

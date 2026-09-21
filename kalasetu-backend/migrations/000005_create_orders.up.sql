@@ -28,7 +28,7 @@ CREATE TABLE order_items (
     price NUMERIC(12, 2) NOT NULL CHECK (price > 0),
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     status VARCHAR(20) NOT NULL
-        CHECK (status IN ('pending_payment', 'paid', 'shipped', 'delivered', 'cancelled'))
+        CHECK (status IN ('paid', 'shipped', 'delivered', 'cancelled'))
 );
 
 CREATE INDEX order_items_order_id_idx ON order_items (order_id);

@@ -8,11 +8,10 @@ import (
 type FulfilmentStatus string
 
 const (
-	StatusPendingPayment FulfilmentStatus = "PENDING_PAYMENT"
-	StatusPaid           FulfilmentStatus = "PAID"
-	StatusShipped        FulfilmentStatus = "SHIPPED"
-	StatusDelivered      FulfilmentStatus = "DELIVERED"
-	StatusCancelled      FulfilmentStatus = "CANCELLED"
+	StatusPaid      FulfilmentStatus = "PAID"
+	StatusShipped   FulfilmentStatus = "SHIPPED"
+	StatusDelivered FulfilmentStatus = "DELIVERED"
+	StatusCancelled FulfilmentStatus = "CANCELLED"
 )
 
 // CanAdvanceTo reports whether a Seller may move an Order Item from s to next:
@@ -25,7 +24,6 @@ func (s FulfilmentStatus) CanAdvanceTo(next FulfilmentStatus) bool {
 type OrderState string
 
 const (
-	OrderPendingPayment   OrderState = "PENDING_PAYMENT"
 	OrderPaid             OrderState = "PAID"
 	OrderPartiallyShipped OrderState = "PARTIALLY_SHIPPED"
 	OrderShipped          OrderState = "SHIPPED"
@@ -77,13 +75,12 @@ type SellerOrderItem struct {
 
 // State summarises the items that are not cancelled.
 func (o Order) State() OrderState {
-	var live, paid, shipped, delivered int
+	var live, shipped, delivered int
 	for _, it := range o.Items {
-		switch it.Status {
-		case StatusCancelled:
+		if it.Status == StatusCancelled {
 			continue
-		case StatusPaid:
-			paid++
+		}
+		switch it.Status {
 		case StatusShipped:
 			shipped++
 		case StatusDelivered:
@@ -100,10 +97,9 @@ func (o Order) State() OrderState {
 		return OrderShipped
 	case shipped+delivered > 0:
 		return OrderPartiallyShipped
-	case paid == live:
-		return OrderPaid
 	}
-	return OrderPendingPayment
+	// Nothing is shipped or delivered, so every live item is paid.
+	return OrderPaid
 }
 
 // ListingUnavailableError is returned by checkout when a Cart line cannot be

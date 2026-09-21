@@ -169,19 +169,19 @@ func TestOrderItemStatusMovesForwardOneStepAtATime(t *testing.T) {
 	}
 
 	// From PAID: only SHIPPED is allowed.
-	for _, to := range []string{"PAID", "PENDING_PAYMENT", "DELIVERED", "CANCELLED"} {
+	for _, to := range []string{"PAID", "DELIVERED", "CANCELLED"} {
 		rejected(to, "PAID")
 	}
 	accepted("SHIPPED")
 
 	// From SHIPPED: only DELIVERED is allowed.
-	for _, to := range []string{"PENDING_PAYMENT", "PAID", "SHIPPED", "CANCELLED"} {
+	for _, to := range []string{"PAID", "SHIPPED", "CANCELLED"} {
 		rejected(to, "SHIPPED")
 	}
 	accepted("DELIVERED")
 
 	// DELIVERED is final.
-	for _, to := range []string{"PENDING_PAYMENT", "PAID", "SHIPPED", "DELIVERED", "CANCELLED"} {
+	for _, to := range []string{"PAID", "SHIPPED", "DELIVERED", "CANCELLED"} {
 		rejected(to, "DELIVERED")
 	}
 }

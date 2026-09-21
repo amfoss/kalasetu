@@ -235,15 +235,13 @@ func (e CartLineIssue) MarshalJSON() ([]byte, error) {
 type FulfilmentStatus string
 
 const (
-	FulfilmentStatusPendingPayment FulfilmentStatus = "PENDING_PAYMENT"
-	FulfilmentStatusPaid           FulfilmentStatus = "PAID"
-	FulfilmentStatusShipped        FulfilmentStatus = "SHIPPED"
-	FulfilmentStatusDelivered      FulfilmentStatus = "DELIVERED"
-	FulfilmentStatusCancelled      FulfilmentStatus = "CANCELLED"
+	FulfilmentStatusPaid      FulfilmentStatus = "PAID"
+	FulfilmentStatusShipped   FulfilmentStatus = "SHIPPED"
+	FulfilmentStatusDelivered FulfilmentStatus = "DELIVERED"
+	FulfilmentStatusCancelled FulfilmentStatus = "CANCELLED"
 )
 
 var AllFulfilmentStatus = []FulfilmentStatus{
-	FulfilmentStatusPendingPayment,
 	FulfilmentStatusPaid,
 	FulfilmentStatusShipped,
 	FulfilmentStatusDelivered,
@@ -252,7 +250,7 @@ var AllFulfilmentStatus = []FulfilmentStatus{
 
 func (e FulfilmentStatus) IsValid() bool {
 	switch e {
-	case FulfilmentStatusPendingPayment, FulfilmentStatusPaid, FulfilmentStatusShipped, FulfilmentStatusDelivered, FulfilmentStatusCancelled:
+	case FulfilmentStatusPaid, FulfilmentStatusShipped, FulfilmentStatusDelivered, FulfilmentStatusCancelled:
 		return true
 	}
 	return false
@@ -353,7 +351,6 @@ func (e ListingSort) MarshalJSON() ([]byte, error) {
 type OrderState string
 
 const (
-	OrderStatePendingPayment   OrderState = "PENDING_PAYMENT"
 	OrderStatePaid             OrderState = "PAID"
 	OrderStatePartiallyShipped OrderState = "PARTIALLY_SHIPPED"
 	OrderStateShipped          OrderState = "SHIPPED"
@@ -362,7 +359,6 @@ const (
 )
 
 var AllOrderState = []OrderState{
-	OrderStatePendingPayment,
 	OrderStatePaid,
 	OrderStatePartiallyShipped,
 	OrderStateShipped,
@@ -372,7 +368,7 @@ var AllOrderState = []OrderState{
 
 func (e OrderState) IsValid() bool {
 	switch e {
-	case OrderStatePendingPayment, OrderStatePaid, OrderStatePartiallyShipped, OrderStateShipped, OrderStateDelivered, OrderStateCancelled:
+	case OrderStatePaid, OrderStatePartiallyShipped, OrderStateShipped, OrderStateDelivered, OrderStateCancelled:
 		return true
 	}
 	return false

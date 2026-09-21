@@ -37,7 +37,8 @@ type OrderService interface {
 	// restocking the Listing and refunding through the PaymentProvider. Anyone
 	// else gets ErrOrderItemCancelForbidden, a non-paid item
 	// repos.ErrItemNotCancellable, and a failed refund ErrRefundFailed with
-	// nothing changed.
+	// nothing changed. Refunds carry the item's reference, so retrying a cancel
+	// that failed after its refund does not refund twice.
 	CancelItem(ctx context.Context, userID, itemID int) (*models.SellerOrderItem, error)
 }
 
@@ -68,7 +69,7 @@ func (s *orderService) Checkout(ctx context.Context, buyerID int, ship models.Sh
 		if err != nil {
 			return "", fmt.Errorf("payment failed: %w", err)
 		}
-		charged = &payments.RefundRequest{ChargeID: res.ChargeID, Amount: amountCents}
+		charged = &payments.RefundRequest{ChargeID: res.ChargeID, Amount: amountCents, Reference: reference}
 		return res.ChargeID, nil
 	}
 	order, err := s.repo.Checkout(ctx, buyerID, ship, pay)
@@ -125,8 +126,8 @@ func (s *orderService) CancelItem(ctx context.Context, userID, itemID int) (*mod
 	if userID != item.BuyerID && userID != item.SellerID {
 		return nil, ErrOrderItemCancelForbidden
 	}
-	err = s.repo.CancelItem(ctx, itemID, func(ctx context.Context, chargeID string, amountCents int64) error {
-		if err := s.payments.Refund(ctx, payments.RefundRequest{ChargeID: chargeID, Amount: amountCents}); err != nil {
+	err = s.repo.CancelItem(ctx, itemID, func(ctx context.Context, chargeID string, amountCents int64, reference string) error {
+		if err := s.payments.Refund(ctx, payments.RefundRequest{ChargeID: chargeID, Amount: amountCents, Reference: reference}); err != nil {
 			return fmt.Errorf("%w: %w", ErrRefundFailed, err)
 		}
 		return nil

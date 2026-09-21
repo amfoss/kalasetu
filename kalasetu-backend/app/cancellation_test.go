@@ -48,8 +48,9 @@ func TestBuyerCancelsPaidItemRestocksAndRefunds(t *testing.T) {
 		t.Errorf("stock = %d, want 5 after restock", got)
 	}
 	charges, refunds := h.Payments.Charges(), h.Payments.Refunds()
-	if len(refunds) != 1 || refunds[0] != (payments.RefundRequest{ChargeID: "fake_charge_1", Amount: 2500}) {
-		t.Errorf("refunds = %+v (charges %+v), want one refund of 2500 against the order's charge", refunds, charges)
+	want := payments.RefundRequest{ChargeID: "fake_charge_1", Amount: 2500, Reference: "item_" + id}
+	if len(refunds) != 1 || refunds[0] != want {
+		t.Errorf("refunds = %+v (charges %+v), want one refund %+v", refunds, charges, want)
 	}
 }
 

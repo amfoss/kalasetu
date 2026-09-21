@@ -205,7 +205,6 @@ type ShippingAddress {
 }
 
 enum FulfilmentStatus {
-    PENDING_PAYMENT
     PAID
     SHIPPED
     DELIVERED
@@ -214,7 +213,6 @@ enum FulfilmentStatus {
 
 # Derived from the non-cancelled Order Items; an Order has no status of its own.
 enum OrderState {
-    PENDING_PAYMENT
     PAID
     PARTIALLY_SHIPPED
     SHIPPED
