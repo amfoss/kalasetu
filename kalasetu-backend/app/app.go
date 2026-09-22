@@ -8,12 +8,14 @@ import (
 	"kalasetu/middlewares"
 	"kalasetu/migrations"
 	"kalasetu/payments"
+	"kalasetu/payments/razorpay"
 	"kalasetu/repos"
 	"kalasetu/routes"
 	"kalasetu/services"
 	"kalasetu/storage"
 	"log"
 	"os"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -31,6 +33,16 @@ type App struct {
 	Port   string
 	// Payments is the provider checkout charges through.
 	Payments payments.PaymentProvider
+}
+
+// GatewayOptions configures the two-phase Checkout Session flow: Gateway is
+// the payments.Gateway implementation to wire in, KeyID is its public key
+// (handed to Buyers' browsers as-is), and ReservationWindow is how long
+// Stock stays reserved by an open Checkout Session.
+type GatewayOptions struct {
+	Gateway           payments.Gateway
+	KeyID             string
+	ReservationWindow time.Duration
 }
 
 const defaultPort = "8080"
@@ -59,15 +71,30 @@ func NewApp() *App {
 		log.Printf("Migrations done")
 	}
 
-	app := New(db, payments.NewUnconfigured())
+	razorpayCfg := config.LoadRazorpayConfig()
+	var gateway payments.Gateway
+	if razorpayCfg.IsConfigured() {
+		gateway = razorpay.NewConnector(razorpayCfg, nil)
+		log.Println("Razorpay gateway configured")
+	} else {
+		gateway = payments.NewUnconfiguredGateway()
+		log.Println("Note: Razorpay (RAZORPAY_KEY_ID) is not configured. Checkout sessions cannot be created.")
+	}
+
+	app := New(db, payments.NewUnconfigured(), GatewayOptions{
+		Gateway:           gateway,
+		KeyID:             razorpayCfg.KeyID,
+		ReservationWindow: razorpayCfg.ReservationWindow,
+	})
 	app.Port = port
 	return app
 }
 
-// New builds the App from an already-connected (and migrated) database and a
-// PaymentProvider. It touches neither the environment nor the network, so
-// tests can construct it in-process and drive app.Router directly.
-func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
+// New builds the App from an already-connected (and migrated) database, a
+// PaymentProvider and GatewayOptions. It touches neither the environment nor
+// the network, so tests can construct it in-process and drive app.Router
+// directly.
+func New(db *sql.DB, paymentProvider payments.PaymentProvider, gatewayOpts GatewayOptions) *App {
 	r := gin.Default()
 
 	userRepo := repos.NewUserRepository(db)
@@ -123,10 +150,13 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider) *App {
 	orderRepo := repos.NewOrderRepository(db)
 	orderService := services.NewOrderService(orderRepo, paymentProvider)
 
+	checkoutSessionRepo := repos.NewCheckoutSessionRepository(db)
+	checkoutSessionService := services.NewCheckoutSessionService(checkoutSessionRepo, gatewayOpts.Gateway, gatewayOpts.KeyID, gatewayOpts.ReservationWindow)
+
 	apiV1 := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(apiV1, authHandler)
 
-	resolver := graph.NewResolver(eventService, applicationService, opportunityService, postService, commentService, likeService, userService, profileService, listingService, cartService, orderService)
+	resolver := graph.NewResolver(eventService, applicationService, opportunityService, postService, commentService, likeService, userService, profileService, listingService, cartService, orderService, checkoutSessionService)
 	srv := gqlSetup(resolver)
 
 	r.POST("/api/v1/graphql", middlewares.OptionalJWT(), func(c *gin.Context) {

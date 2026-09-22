@@ -102,6 +102,11 @@ type Mutation {
   # Turns the caller's non-empty Cart into an Order, all or nothing: any
   # unavailable line, or a failed payment, changes nothing.
   checkout(shippingAddress: ShippingAddressInput!): Order!
+  # Reserves Stock for the caller's non-empty Cart and opens a payment order
+  # with the gateway, returning what the Buyer's browser needs to open the
+  # payment screen. Any unavailable line, or a failed gateway call, changes
+  # nothing. The caller may not already have an open Checkout Session.
+  createCheckoutSession(shippingAddress: ShippingAddressInput!): CheckoutSession!
   # Seller-only for that item. Forward-only, one step at a time: PAID to
   # SHIPPED to DELIVERED; skipping, repeating or reversing is rejected.
   updateOrderItemStatus(id: ID!, status: FulfilmentStatus!): SellerOrderItem!
@@ -416,6 +421,26 @@ type Order {
     total: Float! # INR, 2 decimals
     state: OrderState!
     createdAt: String!
+}
+
+# A snapshot of a Listing line reserved by a Checkout Session.
+type CheckoutSessionItem {
+    listingId: ID!
+    title: String!
+    price: Float!
+    quantity: Int!
+}
+
+# A Buyer's reserved, time-limited intent to purchase, with everything the
+# browser needs to open the gateway's payment screen.
+type CheckoutSession {
+    id: ID!
+    items: [CheckoutSessionItem!]!
+    shippingAddress: ShippingAddress!
+    total: Float! # INR, 2 decimals
+    gatewayOrderId: String!
+    keyId: String! # the gateway's public key; safe to expose to the browser
+    expiresAt: String! # RFC3339
 }
 
 # An Order Item as its Seller sees it, with the Shipping address needed to ship.

@@ -52,6 +52,23 @@ type Category struct {
 	Name string `json:"name"`
 }
 
+type CheckoutSession struct {
+	ID              string                 `json:"id"`
+	Items           []*CheckoutSessionItem `json:"items"`
+	ShippingAddress *ShippingAddress       `json:"shippingAddress"`
+	Total           float64                `json:"total"`
+	GatewayOrderID  string                 `json:"gatewayOrderId"`
+	KeyID           string                 `json:"keyId"`
+	ExpiresAt       string                 `json:"expiresAt"`
+}
+
+type CheckoutSessionItem struct {
+	ListingID string  `json:"listingId"`
+	Title     string  `json:"title"`
+	Price     float64 `json:"price"`
+	Quantity  int32   `json:"quantity"`
+}
+
 type Comment struct {
 	ID        string `json:"id"`
 	PostID    string `json:"postId"`

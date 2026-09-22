@@ -1,9 +1,19 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+	"time"
+)
 
 // defaultRazorpayBaseURL is Razorpay's production API host.
 const defaultRazorpayBaseURL = "https://api.razorpay.com"
+
+// defaultReservationWindow is how long a Checkout Session holds its Stock
+// reservation by default. It must exceed Razorpay's documented 12-minute
+// minimum auto-capture window, or a reservation window shorter than it would
+// manufacture late payments by construction.
+const defaultReservationWindow = 20 * time.Minute
 
 // RazorpayConfig holds the settings needed to talk to Razorpay.
 type RazorpayConfig struct {
@@ -13,6 +23,9 @@ type RazorpayConfig struct {
 	// BaseURL is the Razorpay API host. It defaults to the production host
 	// and is overridden in tests to point at a stub server.
 	BaseURL string
+	// ReservationWindow is how long Stock stays reserved by a Checkout
+	// Session. Configurable via RAZORPAY_RESERVATION_WINDOW_MINUTES.
+	ReservationWindow time.Duration
 }
 
 // LoadRazorpayConfig reads Razorpay configuration from environment
@@ -23,11 +36,19 @@ func LoadRazorpayConfig() *RazorpayConfig {
 		baseURL = defaultRazorpayBaseURL
 	}
 
+	reservationWindow := defaultReservationWindow
+	if v := os.Getenv("RAZORPAY_RESERVATION_WINDOW_MINUTES"); v != "" {
+		if minutes, err := strconv.Atoi(v); err == nil && minutes > 0 {
+			reservationWindow = time.Duration(minutes) * time.Minute
+		}
+	}
+
 	return &RazorpayConfig{
-		KeyID:         os.Getenv("RAZORPAY_KEY_ID"),
-		KeySecret:     os.Getenv("RAZORPAY_KEY_SECRET"),
-		WebhookSecret: os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
-		BaseURL:       baseURL,
+		KeyID:             os.Getenv("RAZORPAY_KEY_ID"),
+		KeySecret:         os.Getenv("RAZORPAY_KEY_SECRET"),
+		WebhookSecret:     os.Getenv("RAZORPAY_WEBHOOK_SECRET"),
+		BaseURL:           baseURL,
+		ReservationWindow: reservationWindow,
 	}
 }
 

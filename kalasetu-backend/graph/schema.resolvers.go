@@ -397,6 +397,27 @@ func (r *mutationResolver) Checkout(ctx context.Context, shippingAddress model.S
 	return toGraphOrder(order), nil
 }
 
+// CreateCheckoutSession is the resolver for the createCheckoutSession field.
+func (r *mutationResolver) CreateCheckoutSession(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.CheckoutSession, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s := shippingAddress
+	ship := models.ShippingAddress{
+		Name: s.Name, Phone: s.Phone, Line1: s.Line1, City: s.City,
+		State: s.State, PostalCode: s.PostalCode, Country: s.Country,
+	}
+	if s.Line2 != nil {
+		ship.Line2 = *s.Line2
+	}
+	session, err := r.checkoutSessionService.Create(ctx, userID, ship)
+	if err != nil {
+		return nil, err
+	}
+	return toGraphCheckoutSession(session), nil
+}
+
 // UpdateOrderItemStatus is the resolver for the updateOrderItemStatus field.
 func (r *mutationResolver) UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error) {
 	userID, err := requireUser(ctx)

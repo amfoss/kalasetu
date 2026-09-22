@@ -47,11 +47,9 @@ type orderService struct {
 	payments payments.PaymentProvider
 }
 
-func NewOrderService(repo repos.OrderRepository, provider payments.PaymentProvider) OrderService {
-	return &orderService{repo: repo, payments: provider}
-}
-
-func (s *orderService) Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress) (*models.Order, error) {
+// normalizeShipping trims ship's fields and rejects it if any but the
+// optional line2 is blank.
+func normalizeShipping(ship models.ShippingAddress) (models.ShippingAddress, error) {
 	ship.Name, ship.Phone = strings.TrimSpace(ship.Name), strings.TrimSpace(ship.Phone)
 	ship.Line1, ship.Line2 = strings.TrimSpace(ship.Line1), strings.TrimSpace(ship.Line2)
 	ship.City, ship.State = strings.TrimSpace(ship.City), strings.TrimSpace(ship.State)
@@ -59,8 +57,20 @@ func (s *orderService) Checkout(ctx context.Context, buyerID int, ship models.Sh
 	// line2 is the only optional field.
 	for _, v := range []string{ship.Name, ship.Phone, ship.Line1, ship.City, ship.State, ship.PostalCode, ship.Country} {
 		if v == "" {
-			return nil, ErrShippingAddressIncomplete
+			return models.ShippingAddress{}, ErrShippingAddressIncomplete
 		}
+	}
+	return ship, nil
+}
+
+func NewOrderService(repo repos.OrderRepository, provider payments.PaymentProvider) OrderService {
+	return &orderService{repo: repo, payments: provider}
+}
+
+func (s *orderService) Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress) (*models.Order, error) {
+	ship, err := normalizeShipping(ship)
+	if err != nil {
+		return nil, err
 	}
 
 	var charged *payments.RefundRequest

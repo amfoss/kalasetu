@@ -290,6 +290,27 @@ func toGraphOrder(o *models.Order) *model.Order {
 	}
 }
 
+func toGraphCheckoutSession(s *models.CheckoutSession) *model.CheckoutSession {
+	items := make([]*model.CheckoutSessionItem, 0, len(s.Items))
+	for _, it := range s.Items {
+		items = append(items, &model.CheckoutSessionItem{
+			ListingID: strconv.Itoa(it.ListingID),
+			Title:     it.Title,
+			Price:     it.Price,
+			Quantity:  int32(it.Quantity),
+		})
+	}
+	return &model.CheckoutSession{
+		ID:              strconv.Itoa(s.ID),
+		Items:           items,
+		ShippingAddress: toGraphShipping(s.Shipping),
+		Total:           s.Total,
+		GatewayOrderID:  s.GatewayOrderID,
+		KeyID:           s.KeyID,
+		ExpiresAt:       s.ExpiresAt.Format(time.RFC3339),
+	}
+}
+
 // optionalUserID returns the authenticated user id from context, or 0 if not authenticated.
 func optionalUserID(ctx context.Context) int {
 	userID, err := middlewares.GetUserIDFromContext(ctx)

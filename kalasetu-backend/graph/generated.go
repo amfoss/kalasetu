@@ -77,6 +77,23 @@ type ComplexityRoot struct {
 		Name func(childComplexity int) int
 	}
 
+	CheckoutSession struct {
+		ExpiresAt       func(childComplexity int) int
+		GatewayOrderID  func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Items           func(childComplexity int) int
+		KeyID           func(childComplexity int) int
+		ShippingAddress func(childComplexity int) int
+		Total           func(childComplexity int) int
+	}
+
+	CheckoutSessionItem struct {
+		ListingID func(childComplexity int) int
+		Price     func(childComplexity int) int
+		Quantity  func(childComplexity int) int
+		Title     func(childComplexity int) int
+	}
+
 	Comment struct {
 		Content   func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
@@ -117,6 +134,7 @@ type ComplexityRoot struct {
 		ArchiveListing          func(childComplexity int, id string) int
 		CancelOrderItem         func(childComplexity int, id string) int
 		Checkout                func(childComplexity int, shippingAddress model.ShippingAddressInput) int
+		CreateCheckoutSession   func(childComplexity int, shippingAddress model.ShippingAddressInput) int
 		CreateEvent             func(childComplexity int, input model.CreateEventInput) int
 		CreateListing           func(childComplexity int, input model.CreateListingInput) int
 		CreateOpportunity       func(childComplexity int, input model.CreateOpportunityInput) int
@@ -298,6 +316,7 @@ type MutationResolver interface {
 	UpdateCartItem(ctx context.Context, listingID string, quantity int32) (*model.Cart, error)
 	RemoveFromCart(ctx context.Context, listingID string) (*model.Cart, error)
 	Checkout(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.Order, error)
+	CreateCheckoutSession(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.CheckoutSession, error)
 	UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error)
 	CancelOrderItem(ctx context.Context, id string) (*model.SellerOrderItem, error)
 	CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error)
@@ -493,6 +512,74 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Category.Name(childComplexity), true
+
+	case "CheckoutSession.expiresAt":
+		if e.ComplexityRoot.CheckoutSession.ExpiresAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.ExpiresAt(childComplexity), true
+	case "CheckoutSession.gatewayOrderId":
+		if e.ComplexityRoot.CheckoutSession.GatewayOrderID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.GatewayOrderID(childComplexity), true
+	case "CheckoutSession.id":
+		if e.ComplexityRoot.CheckoutSession.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.ID(childComplexity), true
+	case "CheckoutSession.items":
+		if e.ComplexityRoot.CheckoutSession.Items == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.Items(childComplexity), true
+	case "CheckoutSession.keyId":
+		if e.ComplexityRoot.CheckoutSession.KeyID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.KeyID(childComplexity), true
+	case "CheckoutSession.shippingAddress":
+		if e.ComplexityRoot.CheckoutSession.ShippingAddress == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.ShippingAddress(childComplexity), true
+	case "CheckoutSession.total":
+		if e.ComplexityRoot.CheckoutSession.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSession.Total(childComplexity), true
+
+	case "CheckoutSessionItem.listingId":
+		if e.ComplexityRoot.CheckoutSessionItem.ListingID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSessionItem.ListingID(childComplexity), true
+	case "CheckoutSessionItem.price":
+		if e.ComplexityRoot.CheckoutSessionItem.Price == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSessionItem.Price(childComplexity), true
+	case "CheckoutSessionItem.quantity":
+		if e.ComplexityRoot.CheckoutSessionItem.Quantity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSessionItem.Quantity(childComplexity), true
+	case "CheckoutSessionItem.title":
+		if e.ComplexityRoot.CheckoutSessionItem.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CheckoutSessionItem.Title(childComplexity), true
 
 	case "Comment.content":
 		if e.ComplexityRoot.Comment.Content == nil {
@@ -702,6 +789,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Checkout(childComplexity, args["shippingAddress"].(model.ShippingAddressInput)), true
+	case "Mutation.createCheckoutSession":
+		if e.ComplexityRoot.Mutation.CreateCheckoutSession == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createCheckoutSession_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateCheckoutSession(childComplexity, args["shippingAddress"].(model.ShippingAddressInput)), true
 	case "Mutation.createEvent":
 		if e.ComplexityRoot.Mutation.CreateEvent == nil {
 			break
@@ -1835,6 +1933,17 @@ func (ec *executionContext) field_Mutation_cancelOrderItem_args(ctx context.Cont
 }
 
 func (ec *executionContext) field_Mutation_checkout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "shippingAddress", ec.unmarshalNShippingAddressInput2kalasetuᚋgraphᚋmodelᚐShippingAddressInput)
+	if err != nil {
+		return nil, err
+	}
+	args["shippingAddress"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createCheckoutSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "shippingAddress", ec.unmarshalNShippingAddressInput2kalasetuᚋgraphᚋmodelᚐShippingAddressInput)
@@ -3068,6 +3177,353 @@ func (ec *executionContext) fieldContext_Category_name(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_id(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_items(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_items,
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		ec.marshalNCheckoutSessionItem2ᚕᚖkalasetuᚋgraphᚋmodelᚐCheckoutSessionItemᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "listingId":
+				return ec.fieldContext_CheckoutSessionItem_listingId(ctx, field)
+			case "title":
+				return ec.fieldContext_CheckoutSessionItem_title(ctx, field)
+			case "price":
+				return ec.fieldContext_CheckoutSessionItem_price(ctx, field)
+			case "quantity":
+				return ec.fieldContext_CheckoutSessionItem_quantity(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CheckoutSessionItem", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_shippingAddress(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_shippingAddress,
+		func(ctx context.Context) (any, error) {
+			return obj.ShippingAddress, nil
+		},
+		nil,
+		ec.marshalNShippingAddress2ᚖkalasetuᚋgraphᚋmodelᚐShippingAddress,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_shippingAddress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ShippingAddress_name(ctx, field)
+			case "phone":
+				return ec.fieldContext_ShippingAddress_phone(ctx, field)
+			case "line1":
+				return ec.fieldContext_ShippingAddress_line1(ctx, field)
+			case "line2":
+				return ec.fieldContext_ShippingAddress_line2(ctx, field)
+			case "city":
+				return ec.fieldContext_ShippingAddress_city(ctx, field)
+			case "state":
+				return ec.fieldContext_ShippingAddress_state(ctx, field)
+			case "postalCode":
+				return ec.fieldContext_ShippingAddress_postalCode(ctx, field)
+			case "country":
+				return ec.fieldContext_ShippingAddress_country(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShippingAddress", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_total(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_gatewayOrderId(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_gatewayOrderId,
+		func(ctx context.Context) (any, error) {
+			return obj.GatewayOrderID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_gatewayOrderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_keyId(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_keyId,
+		func(ctx context.Context) (any, error) {
+			return obj.KeyID, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_keyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_expiresAt,
+		func(ctx context.Context) (any, error) {
+			return obj.ExpiresAt, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSessionItem_listingId(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSessionItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSessionItem_listingId,
+		func(ctx context.Context) (any, error) {
+			return obj.ListingID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSessionItem_listingId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSessionItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSessionItem_title(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSessionItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSessionItem_title,
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSessionItem_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSessionItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSessionItem_price(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSessionItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSessionItem_price,
+		func(ctx context.Context) (any, error) {
+			return obj.Price, nil
+		},
+		nil,
+		ec.marshalNFloat2float64,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSessionItem_price(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSessionItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSessionItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSessionItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSessionItem_quantity,
+		func(ctx context.Context) (any, error) {
+			return obj.Quantity, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSessionItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSessionItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4619,6 +5075,63 @@ func (ec *executionContext) fieldContext_Mutation_checkout(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_checkout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createCheckoutSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createCheckoutSession,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateCheckoutSession(ctx, fc.Args["shippingAddress"].(model.ShippingAddressInput))
+		},
+		nil,
+		ec.marshalNCheckoutSession2ᚖkalasetuᚋgraphᚋmodelᚐCheckoutSession,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createCheckoutSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CheckoutSession_id(ctx, field)
+			case "items":
+				return ec.fieldContext_CheckoutSession_items(ctx, field)
+			case "shippingAddress":
+				return ec.fieldContext_CheckoutSession_shippingAddress(ctx, field)
+			case "total":
+				return ec.fieldContext_CheckoutSession_total(ctx, field)
+			case "gatewayOrderId":
+				return ec.fieldContext_CheckoutSession_gatewayOrderId(ctx, field)
+			case "keyId":
+				return ec.fieldContext_CheckoutSession_keyId(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_CheckoutSession_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CheckoutSession", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createCheckoutSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11743,6 +12256,129 @@ func (ec *executionContext) _Category(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var checkoutSessionImplementors = []string{"CheckoutSession"}
+
+func (ec *executionContext) _CheckoutSession(ctx context.Context, sel ast.SelectionSet, obj *model.CheckoutSession) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, checkoutSessionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CheckoutSession")
+		case "id":
+			out.Values[i] = ec._CheckoutSession_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "items":
+			out.Values[i] = ec._CheckoutSession_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "shippingAddress":
+			out.Values[i] = ec._CheckoutSession_shippingAddress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._CheckoutSession_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "gatewayOrderId":
+			out.Values[i] = ec._CheckoutSession_gatewayOrderId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyId":
+			out.Values[i] = ec._CheckoutSession_keyId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expiresAt":
+			out.Values[i] = ec._CheckoutSession_expiresAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var checkoutSessionItemImplementors = []string{"CheckoutSessionItem"}
+
+func (ec *executionContext) _CheckoutSessionItem(ctx context.Context, sel ast.SelectionSet, obj *model.CheckoutSessionItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, checkoutSessionItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CheckoutSessionItem")
+		case "listingId":
+			out.Values[i] = ec._CheckoutSessionItem_listingId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._CheckoutSessionItem_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "price":
+			out.Values[i] = ec._CheckoutSessionItem_price(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "quantity":
+			out.Values[i] = ec._CheckoutSessionItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var commentImplementors = []string{"Comment"}
 
 func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, obj *model.Comment) graphql.Marshaler {
@@ -12081,6 +12717,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "checkout":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_checkout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createCheckoutSession":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createCheckoutSession(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -13980,6 +14623,46 @@ func (ec *executionContext) marshalNCategory2ᚖkalasetuᚋgraphᚋmodelᚐCateg
 		return graphql.Null
 	}
 	return ec._Category(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCheckoutSession2kalasetuᚋgraphᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v model.CheckoutSession) graphql.Marshaler {
+	return ec._CheckoutSession(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCheckoutSession2ᚖkalasetuᚋgraphᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v *model.CheckoutSession) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CheckoutSession(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCheckoutSessionItem2ᚕᚖkalasetuᚋgraphᚋmodelᚐCheckoutSessionItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CheckoutSessionItem) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCheckoutSessionItem2ᚖkalasetuᚋgraphᚋmodelᚐCheckoutSessionItem(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCheckoutSessionItem2ᚖkalasetuᚋgraphᚋmodelᚐCheckoutSessionItem(ctx context.Context, sel ast.SelectionSet, v *model.CheckoutSessionItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CheckoutSessionItem(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNComment2kalasetuᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v model.Comment) graphql.Marshaler {

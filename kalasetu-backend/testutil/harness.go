@@ -9,18 +9,26 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"kalasetu/app"
+	"kalasetu/payments"
 	"kalasetu/payments/paymentstest"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Harness is an in-process App on a fresh database with a fake PaymentProvider.
+// testReservationWindow is generous enough that no test accidentally races
+// it; tests that need expiry set it explicitly through the database.
+const testReservationWindow = 20 * time.Minute
+
+// Harness is an in-process App on a fresh database with a fake PaymentProvider
+// and a fake payments.Gateway.
 type Harness struct {
 	App      *app.App
 	DB       *sql.DB
 	Payments *paymentstest.Fake
+	Gateway  *paymentstest.FakeGateway
 }
 
 // User is a registered user and a valid access token for them.
@@ -42,7 +50,28 @@ func NewHarness(t testing.TB) *Harness {
 
 	db := NewDB(t)
 	fake := paymentstest.NewFake()
-	return &Harness{App: app.New(db, fake), DB: db, Payments: fake}
+	fakeGateway := paymentstest.NewFakeGateway()
+	a := app.New(db, fake, app.GatewayOptions{
+		Gateway: fakeGateway, KeyID: "fake_key_id", ReservationWindow: testReservationWindow,
+	})
+	return &Harness{App: a, DB: db, Payments: fake, Gateway: fakeGateway}
+}
+
+// NewHarnessUnconfiguredGateway builds a Harness whose payment gateway is the
+// unconfigured fallback, so a test can check the misconfiguration failure
+// path: the application still starts, and a checkout attempt fails clearly.
+func NewHarnessUnconfiguredGateway(t testing.TB) *Harness {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	t.Setenv("JWT_ACCESS_SECRET", "test-access-secret")
+	t.Setenv("JWT_REFRESH_SECRET", "test-refresh-secret")
+
+	db := NewDB(t)
+	fake := paymentstest.NewFake()
+	a := app.New(db, fake, app.GatewayOptions{
+		Gateway: payments.NewUnconfiguredGateway(), ReservationWindow: testReservationWindow,
+	})
+	return &Harness{App: a, DB: db, Payments: fake}
 }
 
 // CreateUser registers a new user through the real auth endpoint and grants
