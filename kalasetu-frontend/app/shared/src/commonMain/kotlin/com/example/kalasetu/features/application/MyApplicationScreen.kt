@@ -74,9 +74,7 @@ fun MyApplicationsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
-                        IconButton(onClick = onMenuClick) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
-                        }
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -156,7 +154,7 @@ fun MyApplicationsScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(filtered, key = { it.id }) { app ->
+                    items(filtered) { app ->
                         ApplicationRow(app = app, onClick = { onApplicationClick(app.id) })
                     }
                     item { Spacer(Modifier.height(16.dp)) }

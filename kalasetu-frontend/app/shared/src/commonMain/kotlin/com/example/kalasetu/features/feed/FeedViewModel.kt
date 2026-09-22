@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 class FeedViewModel : ViewModel() {
 
@@ -124,7 +125,7 @@ class FeedViewModel : ViewModel() {
     fun addComment(postId: Int, text: String) {
         if (text.isBlank()) return
         val newComment = Comment(
-            id = (System.currentTimeMillis() % 100000).toInt(),
+            id = (Clock.System.now().toEpochMilliseconds() % 100000).toInt(),
             userName = "You",
             avatarUrl = "",
             content = text,

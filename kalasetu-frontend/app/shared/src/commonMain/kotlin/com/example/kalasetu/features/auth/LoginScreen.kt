@@ -18,7 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 @Composable
 fun AuthLoginScreen(
     onLogin: (String, String) -> Unit,
@@ -78,7 +79,14 @@ fun AuthLoginScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            AuthTextField(value = username, onValueChange = { username = it }, placeholder = "Email address")
+            AuthTextField(
+                value = username,
+                onValueChange = { username = it },
+                placeholder = "Email address",
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email
+                )
+            )
             Spacer(Modifier.height(16.dp))
             AuthTextField(value = password, onValueChange = { password = it }, placeholder = "Password", isPassword = true)
 

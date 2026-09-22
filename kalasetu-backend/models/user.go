@@ -54,3 +54,8 @@ type OnboardingUser struct {
 	Bio            string   `json:"bio"`
 	ProfilePicture string   `json:"profile_picture"`
 }
+
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
+}

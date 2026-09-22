@@ -87,6 +87,7 @@ type ComplexityRoot struct {
 	}
 
 	Event struct {
+		BannerURL func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
 		Duration  func(childComplexity int) int
 		HostID    func(childComplexity int) int
@@ -530,6 +531,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Comment.UserName(childComplexity), true
 
+	case "Event.bannerUrl":
+		if e.ComplexityRoot.Event.BannerURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Event.BannerURL(childComplexity), true
 	case "Event.createdAt":
 		if e.ComplexityRoot.Event.CreatedAt == nil {
 			break
@@ -3414,6 +3421,35 @@ func (ec *executionContext) fieldContext_Event_hostName(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Event_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Event_bannerUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.BannerURL, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Event_bannerUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Event",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Event_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Event) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3815,6 +3851,8 @@ func (ec *executionContext) fieldContext_Mutation_createEvent(ctx context.Contex
 				return ec.fieldContext_Event_hostId(ctx, field)
 			case "hostName":
 				return ec.fieldContext_Event_hostName(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Event_bannerUrl(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Event_createdAt(ctx, field)
 			}
@@ -3872,6 +3910,8 @@ func (ec *executionContext) fieldContext_Mutation_updateEvent(ctx context.Contex
 				return ec.fieldContext_Event_hostId(ctx, field)
 			case "hostName":
 				return ec.fieldContext_Event_hostName(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Event_bannerUrl(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Event_createdAt(ctx, field)
 			}
@@ -7102,6 +7142,8 @@ func (ec *executionContext) fieldContext_Query_events(_ context.Context, field g
 				return ec.fieldContext_Event_hostId(ctx, field)
 			case "hostName":
 				return ec.fieldContext_Event_hostName(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Event_bannerUrl(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Event_createdAt(ctx, field)
 			}
@@ -7148,6 +7190,8 @@ func (ec *executionContext) fieldContext_Query_event(ctx context.Context, field 
 				return ec.fieldContext_Event_hostId(ctx, field)
 			case "hostName":
 				return ec.fieldContext_Event_hostName(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Event_bannerUrl(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Event_createdAt(ctx, field)
 			}
@@ -7204,6 +7248,8 @@ func (ec *executionContext) fieldContext_Query_userEvents(_ context.Context, fie
 				return ec.fieldContext_Event_hostId(ctx, field)
 			case "hostName":
 				return ec.fieldContext_Event_hostName(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Event_bannerUrl(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Event_createdAt(ctx, field)
 			}
@@ -10692,7 +10738,7 @@ func (ec *executionContext) unmarshalInputCreateEventInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "startDate", "duration"}
+	fieldsInOrder := [...]string{"name", "startDate", "duration", "banner"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10720,6 +10766,13 @@ func (ec *executionContext) unmarshalInputCreateEventInput(ctx context.Context, 
 				return it, err
 			}
 			it.Duration = data
+		case "banner":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("banner"))
+			data, err := ec.unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Banner = data
 		}
 	}
 	return it, nil
@@ -11163,7 +11216,7 @@ func (ec *executionContext) unmarshalInputUpdateEventInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "startDate", "duration"}
+	fieldsInOrder := [...]string{"name", "startDate", "duration", "banner"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -11191,6 +11244,13 @@ func (ec *executionContext) unmarshalInputUpdateEventInput(ctx context.Context, 
 				return it, err
 			}
 			it.Duration = data
+		case "banner":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("banner"))
+			data, err := ec.unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Banner = data
 		}
 	}
 	return it, nil
@@ -11782,6 +11842,8 @@ func (ec *executionContext) _Event(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = ec._Event_hostId(ctx, field, obj)
 		case "hostName":
 			out.Values[i] = ec._Event_hostName(ctx, field, obj)
+		case "bannerUrl":
+			out.Values[i] = ec._Event_bannerUrl(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._Event_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14846,6 +14908,24 @@ func (ec *executionContext) marshalOUpload2ᚕᚖgithubᚗcomᚋ99designsᚋgqlg
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, v any) (*graphql.Upload, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalUpload(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, sel ast.SelectionSet, v *graphql.Upload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalUpload(*v)
+	return res
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

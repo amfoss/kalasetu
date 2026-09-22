@@ -25,6 +25,7 @@ func (r *mutationResolver) CreateEvent(ctx context.Context, input model.CreateEv
 		Name:      input.Name,
 		StartDate: input.StartDate,
 		Duration:  input.Duration,
+		Banner:    toUploadMedia(input.Banner),
 	})
 	if err != nil {
 		return nil, err
@@ -47,6 +48,7 @@ func (r *mutationResolver) UpdateEvent(ctx context.Context, id string, input mod
 		Name:      input.Name,
 		StartDate: input.StartDate,
 		Duration:  input.Duration,
+		Banner:    toUploadMedia(input.Banner),
 	})
 	if err != nil {
 		return nil, err

@@ -10,7 +10,13 @@ object OpportunityStore {
     val opportunities: StateFlow<List<Opportunity>> = _opportunities.asStateFlow()
 
     fun addOpportunity(opportunity: Opportunity) {
-        _opportunities.update { it + opportunity }
+        _opportunities.update { list ->
+            if (list.any { it.id == opportunity.id }) {
+                list.map { if (it.id == opportunity.id) opportunity else it }
+            } else {
+                list + opportunity
+            }
+        }
     }
 
     fun opportunitiesForEvent(eventId: String): List<Opportunity> =

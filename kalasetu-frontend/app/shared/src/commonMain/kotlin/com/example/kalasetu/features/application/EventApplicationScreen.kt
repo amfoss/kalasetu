@@ -352,7 +352,7 @@ private fun ApplicationsTabContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 24.dp),
             ) {
-                items(filteredApps, key = { it.id }) { app ->
+                items(filteredApps) { app ->
                     OrganizerAppRow(
                         app = app,
                         onClick = { onApplicationClick(app.id) },
@@ -392,9 +392,14 @@ private fun OpportunityTabContent(
                 onClick = onCreateOpportunity,
                 colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary),
                 shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
             ) {
-                Text("Create Opportunity", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Opportunity", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
@@ -413,7 +418,7 @@ private fun OpportunityTabContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                items(opportunities, key = { it.id }) { opp ->
+                items(opportunities) { opp ->
                     OpportunityCard(opp, onClick = { onOpportunityClick(opp.id) })
                 }
                 

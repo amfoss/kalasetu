@@ -1,8 +1,6 @@
 <h1 align="center">KalaSetu</h1>
 
-<p align="center">
-  A digital platform connecting traditional artists, craftspeople, organizers, sponsors, and audiences through employment and collaboration.
-</p>
+<p align="center">Helping traditional artists and craftspeople find work, funding, and an audience.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Backend-Go-00ADD8?logo=go&logoColor=white" alt="Go" />
@@ -17,11 +15,20 @@
 
 # Overview
 
-Traditional artists and craftspeople often struggle to find work, funding, and customers in a digital world dominated by generic social platforms. KalaSetu aims to bridge this gap by providing a dedicated digital ecosystem tailored to the cultural sector.
+### Why we're building this
 
-KalaSetu enables **Artists, Craftspeople, Organizers, Sponsors, and Audiences** to discover opportunities, collaborate, and build meaningful professional connections through a platform designed specifically for their needs.
+Traditional artists and craftspeople are often deeply skilled, but invisible outside their immediate community. Organizers looking to hire talent for an event, and sponsors looking to fund a local creator, rarely have a reliable place to look — and the artists themselves have no real equivalent of the platforms other industries take for granted, built around how their work actually gets discovered, hired, and paid.
 
-This repository contains the complete KalaSetu project, including both the frontend and backend applications.
+Generic social media wasn't built for this. Getting "likes" on a post doesn't pay rent, and a photo of a finished piece scrolling past in a feed rarely turns into an actual sale or booking.
+
+KalaSetu is our attempt to close that gap: a platform built specifically for the cultural sector, where artists and craftspeople can be discovered, hired, funded, and paid — not just seen.
+
+### Who it's for
+
+- **Artists & craftspeople** — potters, weavers, painters, musicians, and other traditional practitioners looking for paid work and recognition
+- **Organizers** — people running cultural events, craft fairs, or exhibitions who need to find and hire talent
+- **Sponsors** — individuals or organizations who want to fund creators or cultural events directly
+- **Audiences** — people who want to discover cultural events near them and support the artists behind them
 
 ---
 
@@ -33,232 +40,64 @@ kalasetu/
 └── kalasetu-frontend/    # Kotlin Multiplatform frontend
 ```
 
+Each component has its own detailed README: [`kalasetu-backend/`](kalasetu-backend/README.md) and [`kalasetu-frontend/`](kalasetu-frontend/README.md).
+
 ---
 
 # Architecture
 
-## Overall Repository
+### How it's built
 
-```text
-                   KalaSetu
-                      │
-         ┌────────────┴────────────┐
-         │                         │
-         ▼                         ▼
- kalasetu-frontend          kalasetu-backend
- Kotlin Multiplatform          Go + Gin
-```
+KalaSetu is a mobile app backed by a Go server, all shared behind one API. If you're curious about the technical side — the architecture, the database, how everything connects — that detail lives in the two component repositories:
 
-## Backend Architecture
-
-KalaSetu Backend follows a layered architecture that separates HTTP handling, business logic, and database access.
-
-```mermaid
-
-flowchart TD
-    A["main.go"] --> B["app/app.go<br/>Bootstrap & Dependency Injection"]
-
-    B --> C["Routes"]
-    C --> D["Handlers"]
-    D --> E["Services"]
-    E --> F["Repositories"]
-    F --> G[("PostgreSQL")]
-
-    B --> H["Configuration"]
-    B --> I["Database Migrations"]
-
-    D -. Protected Routes .-> J["JWT Middleware"]
-
-    E --> K["GraphQL"]
-```
-
-### Backend Layers
-
-| Layer | Responsibility |
-|--------|----------------|
-| **Routes** | Maps HTTP endpoints to handler functions |
-| **Handlers** | Handles HTTP requests and responses |
-| **Services** | Implements business logic |
-| **Repositories** | Performs database operations using raw SQL |
-
-Supporting components include:
-
-- JWT Authentication Middleware
-- Embedded SQL Migrations
-- GraphQL Schema & Resolvers
-- Configuration Management
+- [`kalasetu-backend/`](kalasetu-backend/README.md) — the Go server, database, and API
+- [`kalasetu-frontend/`](kalasetu-frontend/README.md) — the Android/iOS app
 
 ---
 
 # Current Features
 
-| Feature | Description |
-|---------|-------------|
-| **Authentication** | User registration and login using JWT authentication |
-| **Refresh Tokens** | Secure refresh token rotation |
-| **User Onboarding** | Collects profile information during onboarding |
-| **Role Management** | Supports different user roles within the platform |
-| **Application Submission** | Allows users to submit applications |
-| **GraphQL Integration** | GraphQL server powered by gqlgen |
+### What you can do on KalaSetu today
 
+**Build a profile.** Artists and craftspeople set up a profile describing their craft, so organizers and sponsors can actually find them — instead of relying on word of mouth or a scattered Instagram page.
+
+**Post your work.** Share photos or videos of a finished piece, an event, or work in progress, and get direct engagement from people who care about the craft.
+
+**Create and discover events.** An organizer can list a craft fair or cultural event with a banner image, and audiences can browse what's happening near them.
+
+**Apply for opportunities.** Artists can apply directly to listed opportunities and track where their application stands, rather than sending a message into the void.
 
 ---
 
 # Technology Stack
 
-## Backend
-
-| Component | Technology |
-|-----------|------------|
-| Language | Go |
-| Framework | Gin |
-| Database | PostgreSQL |
-| Authentication | JWT |
-| GraphQL | gqlgen |
-| Containerization | Docker & Docker Compose |
-
-## Frontend
-
-| Component | Technology |
-|-----------|------------|
-| Language | Kotlin |
-| Framework | Kotlin Multiplatform |
-| Targets | Android, iOS |
+Go + Gin for the server, GraphQL (gqlgen) for the API, PostgreSQL for data, S3 object storage for media, and a Kotlin Multiplatform app. Full details in [`kalasetu-backend/README.md`](kalasetu-backend/README.md).
 
 ---
 
 # Getting Started
 
-## Backend
-
-### Prerequisites
-
-- Docker
-- Docker Compose
-
-### Setup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/amfoss/kalasetu.git
-cd kalasetu
-```
-
-Navigate to the backend:
-
-```bash
-cd kalasetu-backend
-```
-
-Configure the environment variables:
-
-```bash
-cp .env.example .env
-```
-
-Update the values in `.env` as required.
-
-Build and start the backend services:
-
-```bash
-docker compose build
-docker compose up
-```
-
-The backend automatically runs database migrations during startup.
-
-### Backend tests
-
-```bash
-cd kalasetu-backend
-make test
-```
-
-This starts a throwaway `postgres:16-alpine` container (Docker, host networking), runs `go test -v ./...`, and removes the container. Each test gets its own freshly migrated database and drives the GraphQL API in-process via `testutil.NewHarness`.
-
-To use your own Postgres instead, set `KALASETU_TEST_DATABASE_URL` to a URL for a role that can `CREATE DATABASE` and run `go test ./...`. Without it, database tests are skipped.
-
----
-
-## Frontend
-
-Navigate to the frontend project:
-
-```bash
-cd kalasetu-frontend
-```
-
-KalaSetu Frontend is built using **Kotlin Multiplatform**, targeting:
-
-- Android
-- iOS
-
-
-Refer to the frontend documentation inside `kalasetu-frontend` for platform-specific build and run instructions.
+Backend setup (Docker, environment variables, the GraphQL playground at <http://localhost:8080/>) is covered in [`kalasetu-backend/README.md`](kalasetu-backend/README.md). Frontend build and run steps are in [`kalasetu-frontend/README.md`](kalasetu-frontend/README.md).
 
 ---
 
 # Development
 
-## Backend Directory Structure
-
-```
-kalasetu-backend/
-├── app/
-├── config/
-├── graph/
-├── handlers/
-├── middlewares/
-├── migrations/
-├── repos/
-├── routes/
-├── services/
-└── main.go
-```
+For a developer tour of the backend directory layout, database migrations, and regenerating the GraphQL code, see [`kalasetu-backend/README.md`](kalasetu-backend/README.md).
 
 ---
 
 # Contributing
 
-We welcome contributions from the community.
+Contributions are welcome.
 
 1. Fork the repository.
-
-2. Clone your fork.
-
-```bash
-git clone https://github.com/<your-username>/kalasetu.git
-```
-
-3. Create a feature branch.
-
-```bash
-git checkout -b feature/my-feature
-```
-
-4. Make your changes.
-
-5. Commit using meaningful commit messages.
-
-```
-feat: add onboarding endpoint
-fix: validate application payload
-docs: improve setup guide
-```
-
-6. Push your branch.
-
-```bash
-git push origin feature/my-feature
-```
-
-7. Open a Pull Request with a clear description of your changes.
+2. Create a feature branch.
+3. Commit changes with clear, descriptive messages (e.g. `feat: add onboarding endpoint`).
+4. Open a pull request describing the change and its motivation.
 
 ---
 
 # License
 
-KalaSetu is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
-
-See the `LICENSE` file for more information.
+KalaSetu is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See the `LICENSE` file for details.

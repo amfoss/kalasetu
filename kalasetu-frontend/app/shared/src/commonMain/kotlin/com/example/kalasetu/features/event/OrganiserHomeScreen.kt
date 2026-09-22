@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.filled.Menu
+import com.example.kalasetu.features.feed.KalaBottomNav
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,32 +32,34 @@ fun OrganizerHomeScreen(
     viewModel: EventListViewModel,
     onCreateEvent: () -> Unit,
     onEventClick: (String) -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onStoreClick: () -> Unit,
+    onEventsClick: () -> Unit,
+    onHomeClick: () -> Unit,
+    onProfileClick: () -> Unit
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         viewModel.loadEvents(isOrganizer = true)
     }
     Scaffold(
+
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "My Events",
+                        text = "My Events",
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = onMenuClick
-                    ) {
+                    IconButton(onClick = onMenuClick) {
                         Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = "Open menu"
+                            Icons.Default.Menu,
+                            contentDescription = "Menu"
                         )
                     }
                 },
-
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = Color.White
                 )
@@ -76,6 +79,15 @@ fun OrganizerHomeScreen(
                     modifier = Modifier.size(28.dp),
                 )
             }
+        },
+        bottomBar = {
+            KalaBottomNav(
+                selectedIndex = 1,
+                onStoreClick = onStoreClick,
+                onEventsClick = onEventsClick,
+                onHomeClick = onHomeClick,
+                onProfileClick = onProfileClick
+            )
         },
         containerColor = Color.White,
     ) { padding ->
@@ -112,7 +124,7 @@ fun OrganizerHomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
             ) {
-                items(events, key = { it.id }) { event ->
+                items(events) { event ->
                     OrganizerEventCard(
                         event = event,
                         onClick = { onEventClick(event.id) },

@@ -66,6 +66,7 @@ fun ApplicationFormScreen(
     var portfolioFileName by remember { mutableStateOf<String?>(null) }
 
     var showErrors by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     // ─── Validity checks ───
     val isNameValid = applicantName.trim().length >= 3
@@ -96,34 +97,42 @@ fun ApplicationFormScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (isFormValid) {
+                    if (isFormValid && !isSubmitting) {
+                        isSubmitting = true
                         scope.launch {
-                            val res = ApplicationRepository.submitApplication(
-                                eventId = eventId,
-                                opportunityId = opportunityId.ifBlank { null },
-                                applicantName = applicantName.trim(),
-                                email = email.trim(),
-                                phone = phone.trim(),
-                                description = reason.trim(),
-                                resumeUrl = portfolioFileName ?: "portfolio.pdf"
-                            )
-                            val application = res.getOrNull() ?: Application(
-                                id = "app_${Random.nextLong()}",
-                                eventId = eventId,
-                                eventTitle = eventTitle,
-                                eventCoverBytes = eventCoverBytes,
-                                applicantName = applicantName.trim(),
-                                description = reason.trim(),
-                                coverImageBytes = portfolioBytes,
-                                applicantAvatarBytes = applicantAvatarBytes,
-                                portfolioFileName = portfolioFileName ?: "",
-                                email = email.trim(),
-                                phone = phone.trim(),
-                                status = ApplicationStatus.PENDING,
-                            )
-                            onSubmit(application)
+                            try {
+                                val res = ApplicationRepository.submitApplication(
+                                    eventId = eventId,
+                                    opportunityId = opportunityId.ifBlank { null },
+                                    applicantName = applicantName.trim(),
+                                    email = email.trim(),
+                                    phone = phone.trim(),
+                                    description = reason.trim(),
+                                    resumeUrl = portfolioFileName ?: "portfolio.pdf"
+                                )
+                                
+                                val application = res.getOrNull() ?: Application(
+                                    id = "local_${Random.nextLong()}",
+                                    eventId = eventId,
+                                    eventTitle = eventTitle,
+                                    eventCoverBytes = eventCoverBytes,
+                                    applicantName = applicantName.trim(),
+                                    description = reason.trim(),
+                                    applicantAvatarBytes = applicantAvatarBytes,
+                                    portfolioFileName = portfolioFileName ?: "",
+                                    email = email.trim(),
+                                    phone = phone.trim(),
+                                    status = ApplicationStatus.PENDING,
+                                )
+                                onSubmit(application)
+                            } catch (e: Exception) {
+                                println("SUBMISSION CRASH: ${e.message}")
+                                e.printStackTrace()
+                            } finally {
+                                isSubmitting = false
+                            }
                         }
-                    } else {
+                    } else if (!isFormValid) {
                         showErrors = true
                     }
                 },
@@ -132,11 +141,19 @@ fun ApplicationFormScreen(
                 shape = CircleShape,
                 modifier = Modifier.size(56.dp),
             ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next",
-                    modifier = Modifier.size(24.dp),
-                )
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = PurplePrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Next",
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
         },
         containerColor = Color.White,

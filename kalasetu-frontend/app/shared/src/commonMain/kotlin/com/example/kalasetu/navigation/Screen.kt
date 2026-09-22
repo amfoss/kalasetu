@@ -30,7 +30,7 @@ sealed class Screen {
 
     data object Feed : Screen()
     data object Store : Screen()
-
+    data object Events : Screen()
     data object UploadPost : Screen()
     data class PostPreview(
         val description: String,

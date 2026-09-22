@@ -111,18 +111,16 @@ fun SidebarContent(
                 isSelected = currentRoute == "Dashboard",
                 onClick = { onNavigate("Dashboard") }
             )
-            SidebarItem(icon = Icons.Outlined.Event, label = "Events",isSelected = currentRoute == "Events", onClick = { onNavigate("Events") })
-
 
             SectionLabel("Manage")
             SidebarItem(icon = Icons.Outlined.AssignmentInd, label = "Applications", isSelected = currentRoute == "Applications",onClick = { onNavigate("Applications") })
             SidebarItem(icon = Icons.Outlined.ConfirmationNumber, label = "My Events",isSelected = currentRoute == "MyEvents", onClick = { onNavigate("MyEvents") })
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFEEEEEE))
+            //HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFEEEEEE))
 
-            SectionLabel("Communication")
-            SidebarItem(icon = Icons.Outlined.Notifications, label = "Notifications",isSelected = currentRoute == "Notifications", onClick = { onNavigate("Notifications") })
-            SidebarItem(icon = Icons.Outlined.Campaign, label = "Announcements",isSelected = currentRoute == "Announcements", onClick = { onNavigate("Announcements") })
+            //SectionLabel("Communication")
+            //SidebarItem(icon = Icons.Outlined.Notifications, label = "Notifications",isSelected = currentRoute == "Notifications", onClick = { onNavigate("Notifications") })
+            //SidebarItem(icon = Icons.Outlined.Campaign, label = "Announcements",isSelected = currentRoute == "Announcements", onClick = { onNavigate("Announcements") })
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFEEEEEE))
 

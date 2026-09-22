@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private val ErrorRed      = Color(0xFFB00020)
+
 
 
 data class EditProfileState(
@@ -140,6 +142,7 @@ fun EditProfileScreen(
             .imePadding()
     ) {
         // Header
+
         EditProfileHeader(
             initials = state.name.toInitials().ifBlank { profile.name.toInitials() },
             avatarBytes = state.avatarBytes,
@@ -274,44 +277,57 @@ private fun EditProfileHeader(
                     brush = Brush.linearGradient(listOf(BrandPurple, LightPurple))
                 )
         ) {
-            // Back — top-left
-            IconButton(
-                onClick  = onBack,
+
+            Row(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(top = 12.dp, start = 8.dp)
+                    .fillMaxWidth()
+                    .padding(
+                        top = 48.dp,
+                        start = 8.dp,
+                        end = 8.dp
+                    ),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector        = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint               = Color.White
+                // Back
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+
+                // Title
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Edit Profile",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                }
+
+                // Save
+                Text(
+                    text = "Save",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onSave)
+                        .padding(
+                            horizontal = 12.dp,
+                            vertical = 12.dp
+                        )
                 )
             }
-
-            // Title — top-center
-            Text(
-                text       = "Edit Profile",
-                fontSize   = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color      = Color.White,
-                modifier   = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 32.dp)
-            )
-
-            // Save text button — top-right
-            Text(
-                text       = "Save",
-                fontSize   = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color      = Color.White,
-                modifier   = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 32.dp, end = 16.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onSave)
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
-            )
         }
 
         // Avatar

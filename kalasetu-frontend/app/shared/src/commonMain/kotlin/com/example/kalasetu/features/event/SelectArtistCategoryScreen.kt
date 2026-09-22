@@ -26,12 +26,10 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SelectArtistCategoriesScreen(
     onNext: (List<String>) -> Unit,
-    onBack: () -> Unit, // Kept in the signature so your App.kt doesn't break, but not used here
+    onBack: () -> Unit, 
 ) {
-    // State to hold all selected categories
     val selectedCategories = remember { mutableStateListOf<String>() }
 
-    // Helper to toggle selection
     fun toggleCategory(category: String) {
         if (selectedCategories.contains(category)) {
             selectedCategories.remove(category)
@@ -41,7 +39,6 @@ fun SelectArtistCategoriesScreen(
     }
 
     Scaffold(
-        // --- REMOVED TOP APP BAR HERE ---
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onNext(selectedCategories.toList()) },
