@@ -99,14 +99,18 @@ type Mutation {
   updateCartItem(listingId: ID!, quantity: Int!): Cart!
   # Removes the line; a Listing not in the Cart is a no-op.
   removeFromCart(listingId: ID!): Cart!
-  # Turns the caller's non-empty Cart into an Order, all or nothing: any
-  # unavailable line, or a failed payment, changes nothing.
-  checkout(shippingAddress: ShippingAddressInput!): Order!
   # Reserves Stock for the caller's non-empty Cart and opens a payment order
   # with the gateway, returning what the Buyer's browser needs to open the
   # payment screen. Any unavailable line, or a failed gateway call, changes
   # nothing. The caller may not already have an open Checkout Session.
   createCheckoutSession(shippingAddress: ShippingAddressInput!): CheckoutSession!
+  # Confirms a completed payment for the caller's Checkout Session, turning it
+  # into an Order: the confirmation's signature is verified before anything
+  # is created, the Cart is emptied only now, and the session is marked
+  # consumed and cannot be confirmed again. Fulfilment is idempotent, keyed on
+  # the gateway order id: confirming the same payment twice returns the same
+  # Order rather than creating a second one.
+  confirmCheckoutSessionPayment(input: ConfirmCheckoutSessionPaymentInput!): Order!
   # Seller-only for that item. Forward-only, one step at a time: PAID to
   # SHIPPED to DELIVERED; skipping, repeating or reversing is rejected.
   updateOrderItemStatus(id: ID!, status: FulfilmentStatus!): SellerOrderItem!
@@ -441,6 +445,13 @@ type CheckoutSession {
     gatewayOrderId: String!
     keyId: String! # the gateway's public key; safe to expose to the browser
     expiresAt: String! # RFC3339
+}
+
+# What the Buyer's browser relays back after paying at the gateway's checkout.
+input ConfirmCheckoutSessionPaymentInput {
+    gatewayOrderId: String!
+    paymentId: String!
+    signature: String!
 }
 
 # An Order Item as its Seller sees it, with the Shipping address needed to ship.

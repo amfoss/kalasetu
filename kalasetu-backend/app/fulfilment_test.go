@@ -41,11 +41,7 @@ func buy(t *testing.T, h *testutil.Harness, buyer testutil.User, listings ...str
 	for _, l := range listings {
 		addToCart(t, h, buyer, l, 1)
 	}
-	var data struct {
-		Checkout orderData `json:"checkout"`
-	}
-	h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), &data)
-	return data.Checkout
+	return checkout(t, h, buyer)
 }
 
 func TestSellerSeesOnlyOwnOrderItemsWithShippingAddress(t *testing.T) {

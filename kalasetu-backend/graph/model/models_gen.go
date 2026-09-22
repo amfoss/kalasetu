@@ -78,6 +78,12 @@ type Comment struct {
 	CreatedAt string `json:"createdAt"`
 }
 
+type ConfirmCheckoutSessionPaymentInput struct {
+	GatewayOrderID string `json:"gatewayOrderId"`
+	PaymentID      string `json:"paymentId"`
+	Signature      string `json:"signature"`
+}
+
 type CreateApplicationInput struct {
 	OpportunityID  *string `json:"opportunityId,omitempty"`
 	EventID        string  `json:"eventId"`

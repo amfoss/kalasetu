@@ -129,32 +129,32 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddComment              func(childComplexity int, input model.CreateCommentInput) int
-		AddToCart               func(childComplexity int, listingID string, quantity *int32) int
-		ArchiveListing          func(childComplexity int, id string) int
-		CancelOrderItem         func(childComplexity int, id string) int
-		Checkout                func(childComplexity int, shippingAddress model.ShippingAddressInput) int
-		CreateCheckoutSession   func(childComplexity int, shippingAddress model.ShippingAddressInput) int
-		CreateEvent             func(childComplexity int, input model.CreateEventInput) int
-		CreateListing           func(childComplexity int, input model.CreateListingInput) int
-		CreateOpportunity       func(childComplexity int, input model.CreateOpportunityInput) int
-		CreatePost              func(childComplexity int, input model.CreatePostInput) int
-		DeleteComment           func(childComplexity int, id string) int
-		DeleteEvent             func(childComplexity int, id string) int
-		DeletePost              func(childComplexity int, id string) int
-		LikePost                func(childComplexity int, id string) int
-		OnboardUser             func(childComplexity int, input model.OnboardingInput) int
-		RemoveFromCart          func(childComplexity int, listingID string) int
-		SubmitApplication       func(childComplexity int, input model.CreateApplicationInput) int
-		UnLikePost              func(childComplexity int, id string) int
-		UpdateApplicationStatus func(childComplexity int, id string, status string) int
-		UpdateCartItem          func(childComplexity int, listingID string, quantity int32) int
-		UpdateComment           func(childComplexity int, id string, input model.UpdateCommentInput) int
-		UpdateEvent             func(childComplexity int, id string, input model.UpdateEventInput) int
-		UpdateListing           func(childComplexity int, id string, input model.UpdateListingInput) int
-		UpdateOpportunity       func(childComplexity int, id string, input model.UpdateOpportunityInput) int
-		UpdateOrderItemStatus   func(childComplexity int, id string, status model.FulfilmentStatus) int
-		UpdatePost              func(childComplexity int, id string, input model.UpdatePostInput) int
+		AddComment                    func(childComplexity int, input model.CreateCommentInput) int
+		AddToCart                     func(childComplexity int, listingID string, quantity *int32) int
+		ArchiveListing                func(childComplexity int, id string) int
+		CancelOrderItem               func(childComplexity int, id string) int
+		ConfirmCheckoutSessionPayment func(childComplexity int, input model.ConfirmCheckoutSessionPaymentInput) int
+		CreateCheckoutSession         func(childComplexity int, shippingAddress model.ShippingAddressInput) int
+		CreateEvent                   func(childComplexity int, input model.CreateEventInput) int
+		CreateListing                 func(childComplexity int, input model.CreateListingInput) int
+		CreateOpportunity             func(childComplexity int, input model.CreateOpportunityInput) int
+		CreatePost                    func(childComplexity int, input model.CreatePostInput) int
+		DeleteComment                 func(childComplexity int, id string) int
+		DeleteEvent                   func(childComplexity int, id string) int
+		DeletePost                    func(childComplexity int, id string) int
+		LikePost                      func(childComplexity int, id string) int
+		OnboardUser                   func(childComplexity int, input model.OnboardingInput) int
+		RemoveFromCart                func(childComplexity int, listingID string) int
+		SubmitApplication             func(childComplexity int, input model.CreateApplicationInput) int
+		UnLikePost                    func(childComplexity int, id string) int
+		UpdateApplicationStatus       func(childComplexity int, id string, status string) int
+		UpdateCartItem                func(childComplexity int, listingID string, quantity int32) int
+		UpdateComment                 func(childComplexity int, id string, input model.UpdateCommentInput) int
+		UpdateEvent                   func(childComplexity int, id string, input model.UpdateEventInput) int
+		UpdateListing                 func(childComplexity int, id string, input model.UpdateListingInput) int
+		UpdateOpportunity             func(childComplexity int, id string, input model.UpdateOpportunityInput) int
+		UpdateOrderItemStatus         func(childComplexity int, id string, status model.FulfilmentStatus) int
+		UpdatePost                    func(childComplexity int, id string, input model.UpdatePostInput) int
 	}
 
 	Opportunity struct {
@@ -315,8 +315,8 @@ type MutationResolver interface {
 	AddToCart(ctx context.Context, listingID string, quantity *int32) (*model.Cart, error)
 	UpdateCartItem(ctx context.Context, listingID string, quantity int32) (*model.Cart, error)
 	RemoveFromCart(ctx context.Context, listingID string) (*model.Cart, error)
-	Checkout(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.Order, error)
 	CreateCheckoutSession(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.CheckoutSession, error)
+	ConfirmCheckoutSessionPayment(ctx context.Context, input model.ConfirmCheckoutSessionPaymentInput) (*model.Order, error)
 	UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error)
 	CancelOrderItem(ctx context.Context, id string) (*model.SellerOrderItem, error)
 	CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error)
@@ -778,17 +778,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CancelOrderItem(childComplexity, args["id"].(string)), true
-	case "Mutation.checkout":
-		if e.ComplexityRoot.Mutation.Checkout == nil {
+	case "Mutation.confirmCheckoutSessionPayment":
+		if e.ComplexityRoot.Mutation.ConfirmCheckoutSessionPayment == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_checkout_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_confirmCheckoutSessionPayment_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.Checkout(childComplexity, args["shippingAddress"].(model.ShippingAddressInput)), true
+		return e.ComplexityRoot.Mutation.ConfirmCheckoutSessionPayment(childComplexity, args["input"].(model.ConfirmCheckoutSessionPaymentInput)), true
 	case "Mutation.createCheckoutSession":
 		if e.ComplexityRoot.Mutation.CreateCheckoutSession == nil {
 			break
@@ -1775,6 +1775,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputConfirmCheckoutSessionPaymentInput,
 		ec.unmarshalInputCreateApplicationInput,
 		ec.unmarshalInputCreateCommentInput,
 		ec.unmarshalInputCreateEventInput,
@@ -1932,14 +1933,14 @@ func (ec *executionContext) field_Mutation_cancelOrderItem_args(ctx context.Cont
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_checkout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_confirmCheckoutSessionPayment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "shippingAddress", ec.unmarshalNShippingAddressInput2kalasetuᚋgraphᚋmodelᚐShippingAddressInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNConfirmCheckoutSessionPaymentInput2kalasetuᚋgraphᚋmodelᚐConfirmCheckoutSessionPaymentInput)
 	if err != nil {
 		return nil, err
 	}
-	args["shippingAddress"] = arg0
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -5026,61 +5027,6 @@ func (ec *executionContext) fieldContext_Mutation_removeFromCart(ctx context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_checkout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_checkout,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().Checkout(ctx, fc.Args["shippingAddress"].(model.ShippingAddressInput))
-		},
-		nil,
-		ec.marshalNOrder2ᚖkalasetuᚋgraphᚋmodelᚐOrder,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_checkout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Order_id(ctx, field)
-			case "items":
-				return ec.fieldContext_Order_items(ctx, field)
-			case "shippingAddress":
-				return ec.fieldContext_Order_shippingAddress(ctx, field)
-			case "total":
-				return ec.fieldContext_Order_total(ctx, field)
-			case "state":
-				return ec.fieldContext_Order_state(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Order_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_checkout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_createCheckoutSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5132,6 +5078,61 @@ func (ec *executionContext) fieldContext_Mutation_createCheckoutSession(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createCheckoutSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_confirmCheckoutSessionPayment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_confirmCheckoutSessionPayment,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ConfirmCheckoutSessionPayment(ctx, fc.Args["input"].(model.ConfirmCheckoutSessionPaymentInput))
+		},
+		nil,
+		ec.marshalNOrder2ᚖkalasetuᚋgraphᚋmodelᚐOrder,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_confirmCheckoutSessionPayment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Order_id(ctx, field)
+			case "items":
+				return ec.fieldContext_Order_items(ctx, field)
+			case "shippingAddress":
+				return ec.fieldContext_Order_shippingAddress(ctx, field)
+			case "total":
+				return ec.fieldContext_Order_total(ctx, field)
+			case "state":
+				return ec.fieldContext_Order_state(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Order_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_confirmCheckoutSessionPayment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11131,6 +11132,50 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputConfirmCheckoutSessionPaymentInput(ctx context.Context, obj any) (model.ConfirmCheckoutSessionPaymentInput, error) {
+	var it model.ConfirmCheckoutSessionPaymentInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"gatewayOrderId", "paymentId", "signature"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "gatewayOrderId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gatewayOrderId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GatewayOrderID = data
+		case "paymentId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("paymentId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PaymentID = data
+		case "signature":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("signature"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Signature = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateApplicationInput(ctx context.Context, obj any) (model.CreateApplicationInput, error) {
 	var it model.CreateApplicationInput
 	if obj == nil {
@@ -12714,16 +12759,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "checkout":
+		case "createCheckoutSession":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_checkout(ctx, field)
+				return ec._Mutation_createCheckoutSession(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createCheckoutSession":
+		case "confirmCheckoutSessionPayment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createCheckoutSession(ctx, field)
+				return ec._Mutation_confirmCheckoutSessionPayment(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -14693,6 +14738,11 @@ func (ec *executionContext) marshalNComment2ᚖkalasetuᚋgraphᚋmodelᚐCommen
 		return graphql.Null
 	}
 	return ec._Comment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNConfirmCheckoutSessionPaymentInput2kalasetuᚋgraphᚋmodelᚐConfirmCheckoutSessionPaymentInput(ctx context.Context, v any) (model.ConfirmCheckoutSessionPaymentInput, error) {
+	res, err := ec.unmarshalInputConfirmCheckoutSessionPaymentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNCreateApplicationInput2kalasetuᚋgraphᚋmodelᚐCreateApplicationInput(ctx context.Context, v any) (model.CreateApplicationInput, error) {

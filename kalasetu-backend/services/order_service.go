@@ -18,12 +18,19 @@ var (
 	ErrOrderItemCancelForbidden  = errors.New("forbidden: only the buyer or the seller can cancel this order item")
 	ErrRefundFailed              = errors.New("refund failed")
 	ErrInvalidStatusTransition   = errors.New("invalid status transition: an order item goes paid, shipped, delivered, one step at a time")
+	// ErrPaymentConfirmationInvalid means the gateway could not verify the
+	// confirmation's signature: it is tampered, forged, or does not match a
+	// payment the gateway actually processed.
+	ErrPaymentConfirmationInvalid = errors.New("payment confirmation could not be verified")
 )
 
 type OrderService interface {
-	// Checkout turns the buyer's Cart into an Order, all or nothing. See
-	// repos.OrderRepository.Checkout for the failure modes.
-	Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress) (*models.Order, error)
+	// ConfirmCheckoutSessionPayment verifies confirmation against the gateway
+	// before anything is created, then fulfils the caller's Checkout Session
+	// into an Order. See repos.OrderRepository.ConfirmCheckoutSession for the
+	// failure modes; a failed signature verification returns
+	// ErrPaymentConfirmationInvalid.
+	ConfirmCheckoutSessionPayment(ctx context.Context, buyerID int, confirmation payments.ConfirmationRequest) (*models.Order, error)
 	// MyOrders returns the buyer's Orders, newest first.
 	MyOrders(ctx context.Context, buyerID int) ([]models.Order, error)
 	// SellerOrderItems returns the Order Items for the seller's Listings, newest
@@ -45,6 +52,7 @@ type OrderService interface {
 type orderService struct {
 	repo     repos.OrderRepository
 	payments payments.PaymentProvider
+	gateway  payments.Gateway
 }
 
 // normalizeShipping trims ship's fields and rejects it if any but the
@@ -63,32 +71,15 @@ func normalizeShipping(ship models.ShippingAddress) (models.ShippingAddress, err
 	return ship, nil
 }
 
-func NewOrderService(repo repos.OrderRepository, provider payments.PaymentProvider) OrderService {
-	return &orderService{repo: repo, payments: provider}
+func NewOrderService(repo repos.OrderRepository, provider payments.PaymentProvider, gateway payments.Gateway) OrderService {
+	return &orderService{repo: repo, payments: provider, gateway: gateway}
 }
 
-func (s *orderService) Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress) (*models.Order, error) {
-	ship, err := normalizeShipping(ship)
-	if err != nil {
-		return nil, err
+func (s *orderService) ConfirmCheckoutSessionPayment(ctx context.Context, buyerID int, confirmation payments.ConfirmationRequest) (*models.Order, error) {
+	if err := s.gateway.VerifyConfirmation(ctx, confirmation); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrPaymentConfirmationInvalid, err)
 	}
-
-	var charged *payments.RefundRequest
-	pay := func(ctx context.Context, amountCents int64, reference string) (string, error) {
-		res, err := s.payments.Charge(ctx, payments.ChargeRequest{Amount: amountCents, Reference: reference})
-		if err != nil {
-			return "", fmt.Errorf("payment failed: %w", err)
-		}
-		charged = &payments.RefundRequest{ChargeID: res.ChargeID, Amount: amountCents, Reference: reference}
-		return res.ChargeID, nil
-	}
-	order, err := s.repo.Checkout(ctx, buyerID, ship, pay)
-
-	if err != nil && charged != nil {
-		// Charged but the transaction did not commit: give the money back.
-		_ = s.payments.Refund(ctx, *charged)
-	}
-	return order, err
+	return s.repo.ConfirmCheckoutSession(ctx, buyerID, confirmation.GatewayOrderID, confirmation.PaymentID)
 }
 
 func (s *orderService) MyOrders(ctx context.Context, buyerID int) ([]models.Order, error) {

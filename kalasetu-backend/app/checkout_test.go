@@ -1,10 +1,9 @@
 package app_test
 
 import (
-	"errors"
-	"sync"
 	"testing"
 
+	"kalasetu/payments"
 	"kalasetu/testutil"
 )
 
@@ -32,8 +31,8 @@ type orderData struct {
 const orderFields = `id total state items { listingId title price quantity status } shippingAddress { name line2 postalCode country }`
 
 const (
-	checkoutMutation = `mutation($a: ShippingAddressInput!) { checkout(shippingAddress: $a) { ` + orderFields + ` } }`
-	myOrdersQuery    = `{ myOrders { ` + orderFields + ` } }`
+	confirmPaymentMutation = `mutation($i: ConfirmCheckoutSessionPaymentInput!) { confirmCheckoutSessionPayment(input: $i) { ` + orderFields + ` } }`
+	myOrdersQuery          = `{ myOrders { ` + orderFields + ` } }`
 )
 
 func address() map[string]any {
@@ -54,7 +53,53 @@ func stockOf(t *testing.T, h *testutil.Harness, listingID string) int {
 	return n
 }
 
-func TestCheckoutTurnsCartIntoPaidOrderAndEmptiesCart(t *testing.T) {
+func orderCount(t *testing.T, h *testutil.Harness) int {
+	t.Helper()
+	var n int
+	if err := h.DB.QueryRow(`SELECT count(*) FROM orders`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// openCheckoutSession creates a Checkout Session for the buyer's Cart with
+// the default address, failing the test on any error.
+func openCheckoutSession(t *testing.T, h *testutil.Harness, buyer testutil.User) checkoutSessionData {
+	t.Helper()
+	var data struct {
+		CreateCheckoutSession checkoutSessionData `json:"createCheckoutSession"`
+	}
+	h.GraphQL(t, buyer.Token, createCheckoutSessionMutation, checkoutVars(), &data)
+	return data.CreateCheckoutSession
+}
+
+func confirmVars(c payments.ConfirmationRequest) map[string]any {
+	return map[string]any{"i": map[string]any{
+		"gatewayOrderId": c.GatewayOrderID, "paymentId": c.PaymentID, "signature": c.Signature,
+	}}
+}
+
+// confirmPayment relays confirmation to confirmCheckoutSessionPayment, for
+// tests that expect an error.
+func confirmPayment(t *testing.T, h *testutil.Harness, token string, c payments.ConfirmationRequest) testutil.GraphQLResponse {
+	t.Helper()
+	return h.GraphQLRaw(t, token, confirmPaymentMutation, confirmVars(c))
+}
+
+// checkout opens a Checkout Session for the buyer's Cart and confirms
+// payment for it with the harness's fake gateway, returning the Order.
+func checkout(t *testing.T, h *testutil.Harness, buyer testutil.User) orderData {
+	t.Helper()
+	session := openCheckoutSession(t, h, buyer)
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
+	var data struct {
+		ConfirmCheckoutSessionPayment orderData `json:"confirmCheckoutSessionPayment"`
+	}
+	h.GraphQL(t, buyer.Token, confirmPaymentMutation, confirmVars(confirmation), &data)
+	return data.ConfirmCheckoutSessionPayment
+}
+
+func TestConfirmingPaymentTurnsSessionIntoPaidOrderAndEmptiesCart(t *testing.T) {
 	h := testutil.NewHarness(t)
 	seller := h.CreateUser(t, "Artist")
 	buyer := h.CreateUser(t, "Audience")
@@ -64,11 +109,18 @@ func TestCheckoutTurnsCartIntoPaidOrderAndEmptiesCart(t *testing.T) {
 	addToCart(t, h, buyer, vase, 3)
 	addToCart(t, h, buyer, bowl, 1)
 
-	var data struct {
-		Checkout orderData `json:"checkout"`
+	session := openCheckoutSession(t, h, buyer)
+	// The Cart stays intact until the payment is confirmed.
+	if cart := myCart(t, h, buyer); len(cart.Lines) != 2 {
+		t.Fatalf("cart before confirm = %+v, want the 2 lines still there", cart.Lines)
 	}
-	h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), &data)
-	o := data.Checkout
+
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
+	var data struct {
+		ConfirmCheckoutSessionPayment orderData `json:"confirmCheckoutSessionPayment"`
+	}
+	h.GraphQL(t, buyer.Token, confirmPaymentMutation, confirmVars(confirmation), &data)
+	o := data.ConfirmCheckoutSessionPayment
 
 	if o.Total != 333.63 || o.State != "PAID" || len(o.Items) != 2 {
 		t.Fatalf("order = %+v, want total 333.63, PAID, 2 items", o)
@@ -92,167 +144,123 @@ func TestCheckoutTurnsCartIntoPaidOrderAndEmptiesCart(t *testing.T) {
 		t.Errorf("bowl stock = %d, want 1", got)
 	}
 	if cart := myCart(t, h, buyer); len(cart.Lines) != 0 {
-		t.Errorf("cart = %+v, want empty", cart.Lines)
+		t.Errorf("cart = %+v, want empty after confirm", cart.Lines)
 	}
-	charges := h.Payments.Charges()
-	if len(charges) != 1 || charges[0].Amount != 33363 {
-		t.Errorf("charges = %+v, want one of 33363", charges)
+	var status string
+	if err := h.DB.QueryRow(`SELECT status FROM checkout_sessions WHERE id = $1`, session.ID).Scan(&status); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestCheckoutRequiresAuthenticationAndNonEmptyCart(t *testing.T) {
-	h := testutil.NewHarness(t)
-	buyer := h.CreateUser(t, "Audience")
-
-	requireError(t, h.GraphQLRaw(t, "", checkoutMutation, checkoutVars()), "authentication required")
-	requireError(t, h.GraphQLRaw(t, "", myOrdersQuery, nil), "authentication required")
-	requireError(t, h.GraphQLRaw(t, buyer.Token, checkoutMutation, checkoutVars()), "cart is empty")
-	if n := len(h.Payments.Charges()); n != 0 {
-		t.Errorf("charges = %d, want 0", n)
+	if status != "consumed" {
+		t.Errorf("session status = %s, want consumed", status)
 	}
 }
 
-func TestCheckoutRequiresCompleteShippingAddress(t *testing.T) {
+func TestConfirmCheckoutSessionPaymentRequiresAuthentication(t *testing.T) {
 	h := testutil.NewHarness(t)
 	seller := h.CreateUser(t, "Artist")
 	buyer := h.CreateUser(t, "Audience")
 	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5})
 	addToCart(t, h, buyer, vase, 1)
+	session := openCheckoutSession(t, h, buyer)
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
 
-	blank := address()
-	blank["city"] = "   "
-	requireError(t, h.GraphQLRaw(t, buyer.Token, checkoutMutation, map[string]any{"a": blank}), "shipping address is incomplete")
-
-	missing := address()
-	delete(missing, "country")
-	if res := h.GraphQLRaw(t, buyer.Token, checkoutMutation, map[string]any{"a": missing}); len(res.Errors) == 0 {
-		t.Error("missing country: expected an error")
-	}
-	if stockOf(t, h, vase) != 5 || len(myCart(t, h, buyer).Lines) != 1 {
-		t.Error("rejected checkout changed stock or cart")
+	requireError(t, h.GraphQLRaw(t, "", myOrdersQuery, nil), "authentication required")
+	requireError(t, confirmPayment(t, h, "", confirmation), "authentication required")
+	if orderCount(t, h) != 0 {
+		t.Error("rejected confirm created an order")
 	}
 }
 
-func TestCheckoutFailsWholeWhenAnyLineIsUnavailable(t *testing.T) {
-	cases := map[string]func(t *testing.T, h *testutil.Harness, listing string){
-		"insufficient stock": func(t *testing.T, h *testutil.Harness, listing string) {
-			if _, err := h.DB.Exec(`UPDATE listings SET stock = 1 WHERE id = $1`, listing); err != nil {
-				t.Fatal(err)
-			}
-		},
-		"archived": func(t *testing.T, h *testutil.Harness, listing string) { archive(t, h, listing) },
+func TestConfirmCheckoutSessionPaymentRejectsForgedSignature(t *testing.T) {
+	h := testutil.NewHarness(t)
+	seller := h.CreateUser(t, "Artist")
+	buyer := h.CreateUser(t, "Audience")
+	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5})
+	addToCart(t, h, buyer, vase, 1)
+	session := openCheckoutSession(t, h, buyer)
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
+	confirmation.Signature = "tampered"
+
+	requireError(t, confirmPayment(t, h, buyer.Token, confirmation), "payment confirmation could not be verified")
+
+	if got := stockOf(t, h, vase); got != 4 {
+		t.Errorf("stock = %d, want 4 (still reserved, nothing consumed)", got)
 	}
-	for name, breakListing := range cases {
-		t.Run(name, func(t *testing.T) {
-			h := testutil.NewHarness(t)
-			seller := h.CreateUser(t, "Artist")
-			buyer := h.CreateUser(t, "Audience")
-			pottery := categoryID(t, h, "Pottery")
-			fine := seedListing(t, h, seller, pottery, map[string]any{"title": "fine", "stock": 5})
-			bad := seedListing(t, h, seller, pottery, map[string]any{"title": "the-offender", "stock": 5})
-			addToCart(t, h, buyer, fine, 2)
-			addToCart(t, h, buyer, bad, 2)
-			breakListing(t, h, bad)
-			badStock := stockOf(t, h, bad)
-
-			requireError(t, h.GraphQLRaw(t, buyer.Token, checkoutMutation, checkoutVars()), "the-offender")
-
-			if got := stockOf(t, h, fine); got != 5 {
-				t.Errorf("fine stock = %d, want 5 (untouched)", got)
-			}
-			if got := stockOf(t, h, bad); got != badStock {
-				t.Errorf("offender stock = %d, want %d", got, badStock)
-			}
-			if got := len(myCart(t, h, buyer).Lines); got != 2 {
-				t.Errorf("cart lines = %d, want 2", got)
-			}
-			var orders struct {
-				MyOrders []orderData `json:"myOrders"`
-			}
-			h.GraphQL(t, buyer.Token, myOrdersQuery, nil, &orders)
-			if len(orders.MyOrders) != 0 {
-				t.Errorf("orders = %+v, want none", orders.MyOrders)
-			}
-			if n := len(h.Payments.Charges()); n != 0 {
-				t.Errorf("charges = %d, want 0", n)
-			}
-		})
+	if orderCount(t, h) != 0 {
+		t.Error("a forged confirmation produced an order")
+	}
+	if cart := myCart(t, h, buyer); len(cart.Lines) != 1 {
+		t.Errorf("cart = %+v, want intact", cart.Lines)
 	}
 }
 
-func TestPaymentFailureRollsEverythingBack(t *testing.T) {
+func TestConfirmCheckoutSessionPaymentRejectsWrongBuyer(t *testing.T) {
+	h := testutil.NewHarness(t)
+	seller := h.CreateUser(t, "Artist")
+	buyer := h.CreateUser(t, "Audience")
+	other := h.CreateUser(t, "Audience")
+	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5})
+	addToCart(t, h, buyer, vase, 1)
+	session := openCheckoutSession(t, h, buyer)
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
+
+	requireError(t, confirmPayment(t, h, other.Token, confirmation), "forbidden")
+	if orderCount(t, h) != 0 {
+		t.Error("a confirm by another buyer produced an order")
+	}
+}
+
+func TestConfirmCheckoutSessionPaymentRejectsUnknownGatewayOrderID(t *testing.T) {
+	h := testutil.NewHarness(t)
+	buyer := h.CreateUser(t, "Audience")
+	confirmation := h.Gateway.Confirm("does-not-exist")
+
+	requireError(t, confirmPayment(t, h, buyer.Token, confirmation), "not found")
+}
+
+func TestConfirmCheckoutSessionPaymentRejectsANonOpenSession(t *testing.T) {
+	h := testutil.NewHarness(t)
+	seller := h.CreateUser(t, "Artist")
+	buyer := h.CreateUser(t, "Audience")
+	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5})
+	addToCart(t, h, buyer, vase, 1)
+	session := openCheckoutSession(t, h, buyer)
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
+
+	if _, err := h.DB.Exec(`UPDATE checkout_sessions SET status = 'expired' WHERE id = $1`, session.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	requireError(t, confirmPayment(t, h, buyer.Token, confirmation), "cannot be confirmed")
+	if orderCount(t, h) != 0 {
+		t.Error("confirming an expired session produced an order")
+	}
+}
+
+func TestConfirmingSamePaymentTwiceProducesExactlyOneOrder(t *testing.T) {
 	h := testutil.NewHarness(t)
 	seller := h.CreateUser(t, "Artist")
 	buyer := h.CreateUser(t, "Audience")
 	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5})
 	addToCart(t, h, buyer, vase, 2)
-	h.Payments.FailCharges(errors.New("card declined"))
+	session := openCheckoutSession(t, h, buyer)
+	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
 
-	requireError(t, h.GraphQLRaw(t, buyer.Token, checkoutMutation, checkoutVars()), "payment failed")
+	var first, second struct {
+		ConfirmCheckoutSessionPayment orderData `json:"confirmCheckoutSessionPayment"`
+	}
+	h.GraphQL(t, buyer.Token, confirmPaymentMutation, confirmVars(confirmation), &first)
+	h.GraphQL(t, buyer.Token, confirmPaymentMutation, confirmVars(confirmation), &second)
 
-	if got := stockOf(t, h, vase); got != 5 {
-		t.Errorf("stock = %d, want 5", got)
+	if first.ConfirmCheckoutSessionPayment.ID != second.ConfirmCheckoutSessionPayment.ID {
+		t.Errorf("ids = %s, %s, want the same order both times",
+			first.ConfirmCheckoutSessionPayment.ID, second.ConfirmCheckoutSessionPayment.ID)
 	}
-	if cart := myCart(t, h, buyer); len(cart.Lines) != 1 || cart.Lines[0].Quantity != 2 {
-		t.Errorf("cart = %+v, want intact", cart.Lines)
+	if n := orderCount(t, h); n != 1 {
+		t.Errorf("orders = %d, want 1", n)
 	}
-	var n int
-	if err := h.DB.QueryRow(`SELECT (SELECT count(*) FROM orders) + (SELECT count(*) FROM order_items)`).Scan(&n); err != nil {
-		t.Fatal(err)
-	}
-	if n != 0 {
-		t.Errorf("order rows = %d, want 0", n)
-	}
-
-	// The buyer can simply retry once payments work again.
-	h.Payments.FailCharges(nil)
-	var data struct {
-		Checkout orderData `json:"checkout"`
-	}
-	h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), &data)
-	if data.Checkout.State != "PAID" {
-		t.Errorf("retry state = %s, want PAID", data.Checkout.State)
-	}
-}
-
-func TestTwoBuyersRacingForLastUnitExactlyOneWins(t *testing.T) {
-	h := testutil.NewHarness(t)
-	seller := h.CreateUser(t, "Artist")
-	piece := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"title": "one-off", "stock": 1})
-	const buyers = 8
-	users := make([]testutil.User, buyers)
-	for i := range users {
-		users[i] = h.CreateUser(t, "Audience")
-		addToCart(t, h, users[i], piece, 1)
-	}
-
-	results := make([]testutil.GraphQLResponse, buyers)
-	var wg sync.WaitGroup
-	for i := range users {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			results[i] = h.GraphQLRaw(t, users[i].Token, checkoutMutation, checkoutVars())
-		}()
-	}
-	wg.Wait()
-
-	wins := 0
-	for _, res := range results {
-		if len(res.Errors) == 0 {
-			wins++
-		} else {
-			requireError(t, res, "one-off")
-		}
-	}
-	if wins != 1 {
-		t.Fatalf("successful checkouts = %d, want exactly 1", wins)
-	}
-	if got := stockOf(t, h, piece); got != 0 {
-		t.Errorf("stock = %d, want 0", got)
-	}
-	if n := len(h.Payments.Charges()); n != 1 {
-		t.Errorf("charges = %d, want 1", n)
+	if got := stockOf(t, h, vase); got != 3 {
+		t.Errorf("stock = %d, want 3 (decremented once)", got)
 	}
 }
 
@@ -262,10 +270,7 @@ func TestOrderItemsAreSnapshotsUnaffectedByListingChanges(t *testing.T) {
 	buyer := h.CreateUser(t, "Audience")
 	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"title": "vase", "price": 50, "stock": 3})
 	addToCart(t, h, buyer, vase, 1)
-	var placed struct {
-		Checkout orderData `json:"checkout"`
-	}
-	h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), &placed)
+	placed := checkout(t, h, buyer)
 
 	if _, err := h.DB.Exec(`UPDATE listings SET title = 'renamed', price = 999 WHERE id = $1`, vase); err != nil {
 		t.Fatal(err)
@@ -280,7 +285,7 @@ func TestOrderItemsAreSnapshotsUnaffectedByListingChanges(t *testing.T) {
 		t.Fatalf("orders = %+v, want 1", orders.MyOrders)
 	}
 	o := orders.MyOrders[0]
-	if o.ID != placed.Checkout.ID || o.Total != 50 || o.State != "PAID" ||
+	if o.ID != placed.ID || o.Total != 50 || o.State != "PAID" ||
 		len(o.Items) != 1 || o.Items[0].Title != "vase" || o.Items[0].Price != 50 || o.Items[0].Status != "PAID" {
 		t.Errorf("order = %+v, want the original snapshot", o)
 	}
@@ -297,10 +302,10 @@ func TestMyOrdersReturnsOnlyCallersOrdersNewestFirst(t *testing.T) {
 
 	for _, l := range []string{first, second} {
 		addToCart(t, h, buyer, l, 1)
-		h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), nil)
+		checkout(t, h, buyer)
 	}
 	addToCart(t, h, other, first, 1)
-	h.GraphQL(t, other.Token, checkoutMutation, checkoutVars(), nil)
+	checkout(t, h, other)
 
 	var orders struct {
 		MyOrders []orderData `json:"myOrders"`
@@ -320,7 +325,7 @@ func TestOrderStateIsDerivedFromItemStatuses(t *testing.T) {
 	b := seedListing(t, h, seller, pottery, map[string]any{"stock": 2})
 	addToCart(t, h, buyer, a, 1)
 	addToCart(t, h, buyer, b, 1)
-	h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), nil)
+	checkout(t, h, buyer)
 
 	steps := []struct{ setA, setB, want string }{
 		{"shipped", "paid", "PARTIALLY_SHIPPED"},

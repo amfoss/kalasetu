@@ -148,7 +148,7 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider, gatewayOpts Gatew
 	cartService := services.NewCartService(cartRepo, listingRepo)
 
 	orderRepo := repos.NewOrderRepository(db)
-	orderService := services.NewOrderService(orderRepo, paymentProvider)
+	orderService := services.NewOrderService(orderRepo, paymentProvider, gatewayOpts.Gateway)
 
 	checkoutSessionRepo := repos.NewCheckoutSessionRepository(db)
 	checkoutSessionService := services.NewCheckoutSessionService(checkoutSessionRepo, gatewayOpts.Gateway, gatewayOpts.KeyID, gatewayOpts.ReservationWindow)

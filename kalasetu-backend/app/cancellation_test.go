@@ -19,10 +19,7 @@ func cancelItem(t *testing.T, h *testutil.Harness, token, id string) testutil.Gr
 func buyQty(t *testing.T, h *testutil.Harness, buyer, seller testutil.User, listing string, qty int) string {
 	t.Helper()
 	addToCart(t, h, buyer, listing, qty)
-	var data struct {
-		Checkout orderData `json:"checkout"`
-	}
-	h.GraphQL(t, buyer.Token, checkoutMutation, checkoutVars(), &data)
+	checkout(t, h, buyer)
 	items := sellerItems(t, h, seller.Token, "PAID")
 	return items[0].ID
 }
@@ -47,10 +44,10 @@ func TestBuyerCancelsPaidItemRestocksAndRefunds(t *testing.T) {
 	if got := stockOf(t, h, vase); got != 5 {
 		t.Errorf("stock = %d, want 5 after restock", got)
 	}
-	charges, refunds := h.Payments.Charges(), h.Payments.Refunds()
-	want := payments.RefundRequest{ChargeID: "fake_charge_1", Amount: 2500, Reference: "item_" + id}
+	refunds := h.Payments.Refunds()
+	want := payments.RefundRequest{ChargeID: "fake_payment_1", Amount: 2500, Reference: "item_" + id}
 	if len(refunds) != 1 || refunds[0] != want {
-		t.Errorf("refunds = %+v (charges %+v), want one refund %+v", refunds, charges, want)
+		t.Errorf("refunds = %+v, want one refund %+v", refunds, want)
 	}
 }
 

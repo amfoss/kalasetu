@@ -20,11 +20,17 @@ var (
 	// did not commit, so the item is still paid and the stock not restocked.
 	// Retrying is safe: the refund carries a reference the provider deduplicates.
 	ErrCancelNotCommitted = errors.New("order item refunded but the cancellation did not commit")
+	// ErrCheckoutSessionNotFound means no Checkout Session matches the
+	// gateway order id being confirmed.
+	ErrCheckoutSessionNotFound = errors.New("checkout session not found")
+	// ErrCheckoutSessionForbidden means the caller is not the Checkout
+	// Session's Buyer.
+	ErrCheckoutSessionForbidden = errors.New("forbidden: this checkout session is not yours")
+	// ErrCheckoutSessionNotConfirmable means the Checkout Session is neither
+	// open nor already consumed (it is cancelled or expired), so it cannot
+	// be turned into an Order.
+	ErrCheckoutSessionNotConfirmable = errors.New("checkout session cannot be confirmed: it is not open")
 )
-
-// PayFunc charges amountCents for reference (the order id) and returns the
-// charge id. It runs inside the checkout transaction.
-type PayFunc func(ctx context.Context, amountCents int64, reference string) (chargeID string, err error)
 
 // RefundFunc refunds amountCents of the Order's charge. reference identifies
 // the refund so a repeat of one already accepted is a no-op. It runs inside
@@ -32,13 +38,17 @@ type PayFunc func(ctx context.Context, amountCents int64, reference string) (cha
 type RefundFunc func(ctx context.Context, chargeID string, amountCents int64, reference string) error
 
 type OrderRepository interface {
-	// Checkout turns the buyer's Cart into an Order in a single transaction:
-	// stock is decremented with a guarded update, pay is called, every item is
-	// stored as paid with a snapshot of title and price, and the Cart is emptied.
-	// Any failure, including pay's, rolls everything back. It returns
-	// ErrCartEmpty, ErrCheckoutOwnBuy or *models.ListingUnavailableError for
-	// business failures, and pay's error unchanged.
-	Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress, pay PayFunc) (*models.Order, error)
+	// ConfirmCheckoutSession fulfils the Checkout Session matching
+	// gatewayOrderID into an Order: the session is locked, its snapshot
+	// becomes the Order and its Items (each paid), the session is marked
+	// consumed, and the Buyer's Cart is emptied. It is a single idempotent
+	// routine keyed on gatewayOrderID: if the session is already consumed, it
+	// returns the Order that resulted the first time rather than creating a
+	// second one. It returns ErrCheckoutSessionNotFound if no session matches
+	// gatewayOrderID, ErrCheckoutSessionForbidden if it is not buyerID's, and
+	// ErrCheckoutSessionNotConfirmable if it is neither open nor already
+	// consumed (e.g. cancelled or expired).
+	ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string) (*models.Order, error)
 	// FindByBuyer returns the buyer's orders with their items, newest first, never nil.
 	FindByBuyer(ctx context.Context, buyerID int) ([]models.Order, error)
 	// FindItemsBySeller returns the Order Items for the seller's Listings, newest
@@ -64,93 +74,95 @@ type orderRepository struct {
 	db *sql.DB
 }
 
+// roundPrice rounds v (a float8 cast of a NUMERIC(12,2) column) to 2 decimal
+// places, undoing the imprecision that float8 can introduce.
+func roundPrice(v float64) float64 { return math.Round(v*100) / 100 }
+
 func NewOrderRepository(db *sql.DB) OrderRepository {
 	return &orderRepository{db: db}
 }
 
-func (r *orderRepository) Checkout(ctx context.Context, buyerID int, ship models.ShippingAddress, pay PayFunc) (*models.Order, error) {
+func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string) (*models.Order, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	// Locking the cart rows makes a double submit by the same buyer see an
-	// empty cart; the fixed listing order keeps concurrent checkouts from
-	// deadlocking on stock updates.
-	rows, err := tx.QueryContext(ctx, `
-		SELECT c.listing_id, c.quantity, l.title, (l.price * 100)::bigint, l.seller_id
-		FROM cart_items c JOIN listings l ON l.id = c.listing_id
-		WHERE c.user_id = $1
-		ORDER BY c.listing_id
-		FOR UPDATE OF c`, buyerID)
+	var sessionID, sessBuyerID int
+	var status string
+	ship := models.ShippingAddress{}
+	var total float64
+	err = tx.QueryRowContext(ctx, `
+		SELECT id, buyer_id, status, ship_name, ship_phone, ship_line1, ship_line2,
+			ship_city, ship_state, ship_postal_code, ship_country, total::float8
+		FROM checkout_sessions WHERE gateway_order_id = $1 FOR UPDATE`, gatewayOrderID).Scan(
+		&sessionID, &sessBuyerID, &status, &ship.Name, &ship.Phone, &ship.Line1, &ship.Line2,
+		&ship.City, &ship.State, &ship.PostalCode, &ship.Country, &total)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCheckoutSessionNotFound
+	}
+	total = roundPrice(total)
 	if err != nil {
 		return nil, err
 	}
-	type line struct {
-		item       models.OrderItem
-		priceCents int64
-	}
-	var lines []line
-	for rows.Next() {
-		var l line
-		if err := rows.Scan(&l.item.ListingID, &l.item.Quantity, &l.item.Title, &l.priceCents, &l.item.SellerID); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		l.item.Price = float64(l.priceCents) / 100
-		l.item.Status = models.StatusPaid
-		lines = append(lines, l)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
-	if len(lines) == 0 {
-		return nil, ErrCartEmpty
+	if sessBuyerID != buyerID {
+		return nil, ErrCheckoutSessionForbidden
 	}
 
-	var totalCents int64
-	for _, l := range lines {
-		if l.item.SellerID == buyerID {
-			return nil, ErrCheckoutOwnBuy
-		}
-		res, err := tx.ExecContext(ctx, `
-			UPDATE listings SET stock = stock - $2
-			WHERE id = $1 AND archived_at IS NULL AND stock >= $2`, l.item.ListingID, l.item.Quantity)
+	if status == "consumed" {
+		// Already fulfilled, by this call or a concurrent/retried one: replay
+		// the Order that resulted the first time instead of making another.
+		order, err := r.findOrderByCheckoutSession(ctx, tx, sessionID)
 		if err != nil {
 			return nil, err
 		}
-		if n, err := res.RowsAffected(); err != nil {
-			return nil, err
-		} else if n == 0 {
-			return nil, &models.ListingUnavailableError{ListingID: l.item.ListingID, Title: l.item.Title}
+		if order == nil {
+			return nil, ErrCheckoutSessionNotConfirmable
 		}
-		totalCents += l.priceCents * int64(l.item.Quantity)
+		return order, tx.Commit()
+	}
+	if status != "open" {
+		return nil, ErrCheckoutSessionNotConfirmable
 	}
 
-	order := &models.Order{BuyerID: buyerID, Shipping: ship, Total: float64(totalCents) / 100}
-	if err := tx.QueryRowContext(ctx, `
-		INSERT INTO orders (buyer_id, ship_name, ship_phone, ship_line1, ship_line2,
-			ship_city, ship_state, ship_postal_code, ship_country, total)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, created_at`,
-		buyerID, ship.Name, ship.Phone, ship.Line1, ship.Line2, ship.City, ship.State,
-		ship.PostalCode, ship.Country, order.Total).Scan(&order.ID, &order.CreatedAt); err != nil {
-		return nil, err
-	}
-
-	chargeID, err := pay(ctx, totalCents, fmt.Sprintf("order_%d", order.ID))
+	itemRows, err := tx.QueryContext(ctx, `
+		SELECT listing_id, seller_id, title, price::float8, quantity
+		FROM checkout_session_items WHERE checkout_session_id = $1 ORDER BY id`, sessionID)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE orders SET charge_id = $2 WHERE id = $1`, order.ID, chargeID); err != nil {
+	var items []models.OrderItem
+	for itemRows.Next() {
+		var it models.OrderItem
+		if err := itemRows.Scan(&it.ListingID, &it.SellerID, &it.Title, &it.Price, &it.Quantity); err != nil {
+			itemRows.Close()
+			return nil, err
+		}
+		it.Price = roundPrice(it.Price)
+		it.Status = models.StatusPaid
+		items = append(items, it)
+	}
+	if err := itemRows.Err(); err != nil {
+		itemRows.Close()
+		return nil, err
+	}
+	itemRows.Close()
+
+	order := &models.Order{BuyerID: buyerID, Shipping: ship, Total: total}
+	// charge_id predates the gateway seam; it now holds paymentID, the
+	// gateway's payment identifier, rather than an old PaymentProvider charge id.
+	if err := tx.QueryRowContext(ctx, `
+		INSERT INTO orders (buyer_id, ship_name, ship_phone, ship_line1, ship_line2,
+			ship_city, ship_state, ship_postal_code, ship_country, total, checkout_session_id, charge_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id, created_at`,
+		buyerID, ship.Name, ship.Phone, ship.Line1, ship.Line2, ship.City, ship.State,
+		ship.PostalCode, ship.Country, total, sessionID, paymentID).Scan(&order.ID, &order.CreatedAt); err != nil {
 		return nil, err
 	}
 
-	for _, l := range lines {
-		it := l.item
+	for _, it := range items {
 		if err := tx.QueryRowContext(ctx, `
 			INSERT INTO order_items (order_id, listing_id, seller_id, title, price, quantity, status)
 			VALUES ($1, $2, $3, $4, $5, $6, 'paid') RETURNING id`,
@@ -158,6 +170,11 @@ func (r *orderRepository) Checkout(ctx context.Context, buyerID int, ship models
 			return nil, err
 		}
 		order.Items = append(order.Items, it)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE checkout_sessions SET status = 'consumed' WHERE id = $1`, sessionID); err != nil {
+		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM cart_items WHERE user_id = $1`, buyerID); err != nil {
 		return nil, err
@@ -167,6 +184,45 @@ func (r *orderRepository) Checkout(ctx context.Context, buyerID int, ship models
 		return nil, err
 	}
 	return order, nil
+}
+
+// findOrderByCheckoutSession returns the Order fulfilled from sessionID, or
+// nil if there is none.
+func (r *orderRepository) findOrderByCheckoutSession(ctx context.Context, tx *sql.Tx, sessionID int) (*models.Order, error) {
+	order := &models.Order{Items: []models.OrderItem{}}
+	s := &order.Shipping
+	err := tx.QueryRowContext(ctx, `
+		SELECT id, buyer_id, ship_name, ship_phone, ship_line1, ship_line2, ship_city, ship_state,
+			ship_postal_code, ship_country, total::float8, created_at
+		FROM orders WHERE checkout_session_id = $1`, sessionID).Scan(
+		&order.ID, &order.BuyerID, &s.Name, &s.Phone, &s.Line1, &s.Line2, &s.City, &s.State,
+		&s.PostalCode, &s.Country, &order.Total, &order.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	order.Total = roundPrice(order.Total)
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT id, listing_id, seller_id, title, price::float8, quantity, status
+		FROM order_items WHERE order_id = $1 ORDER BY id`, order.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var it models.OrderItem
+		var status string
+		if err := rows.Scan(&it.ID, &it.ListingID, &it.SellerID, &it.Title, &it.Price, &it.Quantity, &status); err != nil {
+			return nil, err
+		}
+		it.Price = roundPrice(it.Price)
+		it.Status = models.FulfilmentStatus(strings.ToUpper(status))
+		order.Items = append(order.Items, it)
+	}
+	return order, rows.Err()
 }
 
 func (r *orderRepository) FindByBuyer(ctx context.Context, buyerID int) ([]models.Order, error) {

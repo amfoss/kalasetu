@@ -11,6 +11,7 @@ import (
 	"kalasetu/graph/model"
 	"kalasetu/middlewares"
 	"kalasetu/models"
+	"kalasetu/payments"
 	"strconv"
 )
 
@@ -376,27 +377,6 @@ func (r *mutationResolver) RemoveFromCart(ctx context.Context, listingID string)
 	return toGraphCart(cart), nil
 }
 
-// Checkout is the resolver for the checkout field.
-func (r *mutationResolver) Checkout(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.Order, error) {
-	userID, err := requireUser(ctx)
-	if err != nil {
-		return nil, err
-	}
-	s := shippingAddress
-	ship := models.ShippingAddress{
-		Name: s.Name, Phone: s.Phone, Line1: s.Line1, City: s.City,
-		State: s.State, PostalCode: s.PostalCode, Country: s.Country,
-	}
-	if s.Line2 != nil {
-		ship.Line2 = *s.Line2
-	}
-	order, err := r.orderService.Checkout(ctx, userID, ship)
-	if err != nil {
-		return nil, err
-	}
-	return toGraphOrder(order), nil
-}
-
 // CreateCheckoutSession is the resolver for the createCheckoutSession field.
 func (r *mutationResolver) CreateCheckoutSession(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.CheckoutSession, error) {
 	userID, err := requireUser(ctx)
@@ -416,6 +396,23 @@ func (r *mutationResolver) CreateCheckoutSession(ctx context.Context, shippingAd
 		return nil, err
 	}
 	return toGraphCheckoutSession(session), nil
+}
+
+// ConfirmCheckoutSessionPayment is the resolver for the confirmCheckoutSessionPayment field.
+func (r *mutationResolver) ConfirmCheckoutSessionPayment(ctx context.Context, input model.ConfirmCheckoutSessionPaymentInput) (*model.Order, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	order, err := r.orderService.ConfirmCheckoutSessionPayment(ctx, userID, payments.ConfirmationRequest{
+		GatewayOrderID: input.GatewayOrderID,
+		PaymentID:      input.PaymentID,
+		Signature:      input.Signature,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toGraphOrder(order), nil
 }
 
 // UpdateOrderItemStatus is the resolver for the updateOrderItemStatus field.
