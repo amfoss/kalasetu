@@ -28,9 +28,10 @@ var errFakeInvalidSignature = errors.New("paymentstest: invalid confirmation sig
 type FakeGateway struct {
 	mu sync.Mutex
 
-	createOrderErr error
-	verifyErr      error
-	refundErr      error
+	createOrderErr   error
+	verifyErr        error
+	refundErr        error
+	nextRefundStatus string
 
 	nextOrderID   int
 	nextPaymentID int
@@ -59,6 +60,25 @@ func (f *FakeGateway) FailVerifyConfirmation(err error) {
 
 // FailRefund makes subsequent Refund calls return err; nil restores success.
 func (f *FakeGateway) FailRefund(err error) { f.mu.Lock(); f.refundErr = err; f.mu.Unlock() }
+
+// NextRefundStatus makes the next fresh (non-replayed) Refund call return
+// status instead of "processed", the way a real gateway reports a refund it
+// has accepted but not yet settled. It applies once.
+func (f *FakeGateway) NextRefundStatus(status string) {
+	f.mu.Lock()
+	f.nextRefundStatus = status
+	f.mu.Unlock()
+}
+
+// SeedRefund records result as the outcome already on file for idempotencyKey,
+// so the next Refund call using it replays result instead of creating a new
+// refund - standing in for a real gateway's conflict response to a repeated
+// idempotency key.
+func (f *FakeGateway) SeedRefund(idempotencyKey string, result payments.RefundOrderResult) {
+	f.mu.Lock()
+	f.refunded[idempotencyKey] = result
+	f.mu.Unlock()
+}
 
 // Orders returns the orders created so far.
 func (f *FakeGateway) Orders() []payments.CreateOrderRequest {
@@ -129,9 +149,14 @@ func (f *FakeGateway) Refund(_ context.Context, req payments.RefundOrderRequest)
 		}
 	}
 	f.nextRefundID++
+	status := "processed"
+	if f.nextRefundStatus != "" {
+		status = f.nextRefundStatus
+		f.nextRefundStatus = ""
+	}
 	result := payments.RefundOrderResult{
 		RefundID: fmt.Sprintf("fake_refund_%d", f.nextRefundID),
-		Status:   "processed",
+		Status:   status,
 	}
 	f.refunds = append(f.refunds, req)
 	if req.IdempotencyKey != "" {

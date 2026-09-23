@@ -42,15 +42,28 @@ type ShippingAddress struct {
 	Country    string
 }
 
+// RefundStatus tracks a cancelled Order Item's refund separately from its
+// fulfilment status: the fulfilment status stays CANCELLED regardless of how
+// the refund settles.
+type RefundStatus string
+
+const (
+	RefundAccepted RefundStatus = "ACCEPTED"
+	RefundSettled  RefundStatus = "SETTLED"
+	RefundFailed   RefundStatus = "FAILED"
+)
+
 // OrderItem holds a snapshot of the Listing's title and price (INR).
 type OrderItem struct {
-	ID        int
-	ListingID int
-	SellerID  int
-	Title     string
-	Price     float64
-	Quantity  int
-	Status    FulfilmentStatus
+	ID           int
+	ListingID    int
+	SellerID     int
+	Title        string
+	Price        float64
+	Quantity     int
+	Status       FulfilmentStatus
+	RefundID     string
+	RefundStatus RefundStatus
 }
 
 // Order's Total is INR, rounded to 2 decimals.

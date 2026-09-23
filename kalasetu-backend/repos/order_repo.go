@@ -32,10 +32,28 @@ var (
 	ErrCheckoutSessionNotConfirmable = errors.New("checkout session cannot be confirmed: it is not open")
 )
 
-// RefundFunc refunds amountCents of the Order's charge. reference identifies
-// the refund so a repeat of one already accepted is a no-op. It runs inside
-// the cancellation transaction.
-type RefundFunc func(ctx context.Context, chargeID string, amountCents int64, reference string) error
+// RefundFunc refunds amountCents of the Order's charge, identified by
+// idempotencyKey so a repeat of a refund already accepted is a no-op rather
+// than a second refund. It runs inside the cancellation transaction and
+// returns the gateway's account of the refund.
+type RefundFunc func(ctx context.Context, chargeID string, amountCents int64, idempotencyKey string) (RefundResult, error)
+
+// RefundResult is the gateway's account of an accepted refund: its own
+// identifier for it, and a status the caller does not have to interpret -
+// any non-error result from RefundFunc counts as accepted, whether or not the
+// gateway has settled it yet.
+type RefundResult struct {
+	RefundID string
+	Status   string
+}
+
+// refundIdempotencyKey is a stable idempotency key for id's Order Item
+// refund: it depends only on id, so retrying the same cancellation reuses it
+// with the same request body. It is at least ten characters drawn from
+// alphanumerics, hyphens and underscores, meeting the gateway's minimum.
+func refundIdempotencyKey(id int) string {
+	return fmt.Sprintf("order-item-refund-%d", id)
+}
 
 type OrderRepository interface {
 	// ConfirmCheckoutSession fulfils the Checkout Session matching
@@ -61,13 +79,14 @@ type OrderRepository interface {
 	// reports whether it did, so concurrent updates cannot skip a step.
 	AdvanceItem(ctx context.Context, id int, from, to models.FulfilmentStatus) (bool, error)
 	// CancelItem, in a single transaction, moves a paid item to cancelled, puts
-	// its quantity back into the Listing's stock (Archived or not) and calls
-	// refund for the item's price times quantity. Any failure, including
+	// its quantity back into the Listing's stock (Archived or not), calls
+	// refund for the item's price times quantity, and records the refund's
+	// identifier and accepted status on the item. Any failure, including
 	// refund's (returned unchanged), changes nothing. It returns
 	// ErrItemNotCancellable if the item is not paid, so of two concurrent
 	// cancels only one refunds, and ErrCancelNotCommitted if the refund was
 	// accepted but the transaction did not commit.
-	CancelItem(ctx context.Context, id int, refund RefundFunc) error
+	CancelItem(ctx context.Context, id int, refund RefundFunc) (RefundResult, error)
 }
 
 type orderRepository struct {
@@ -295,10 +314,10 @@ func (r *orderRepository) AdvanceItem(ctx context.Context, id int, from, to mode
 	return n > 0, err
 }
 
-func (r *orderRepository) CancelItem(ctx context.Context, id int, refund RefundFunc) error {
+func (r *orderRepository) CancelItem(ctx context.Context, id int, refund RefundFunc) (RefundResult, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return RefundResult{}, err
 	}
 	defer tx.Rollback()
 
@@ -312,26 +331,32 @@ func (r *orderRepository) CancelItem(ctx context.Context, id int, refund RefundF
 		FROM order_items i JOIN orders o ON o.id = i.order_id
 		WHERE i.id = $1 FOR UPDATE OF i`, id).Scan(&listingID, &quantity, &priceCents, &status, &chargeID)
 	if err != nil {
-		return err
+		return RefundResult{}, err
 	}
 	if status != "paid" {
-		return ErrItemNotCancellable
+		return RefundResult{}, ErrItemNotCancellable
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE order_items SET status = 'cancelled' WHERE id = $1`, id); err != nil {
-		return err
+		return RefundResult{}, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE listings SET stock = stock + $2 WHERE id = $1`, listingID, quantity); err != nil {
-		return err
+		return RefundResult{}, err
 	}
-	if err := refund(ctx, chargeID.String, priceCents*int64(quantity), fmt.Sprintf("item_%d", id)); err != nil {
-		return err
+	result, err := refund(ctx, chargeID.String, priceCents*int64(quantity), refundIdempotencyKey(id))
+	if err != nil {
+		return RefundResult{}, err
+	}
+	refundID := sql.NullString{String: result.RefundID, Valid: result.RefundID != ""}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE order_items SET refund_id = $2, refund_status = 'accepted' WHERE id = $1`, id, refundID); err != nil {
+		return RefundResult{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		// The money is already back with the buyer but nothing else changed.
 		// Say so, so a retry is not mistaken for a fresh cancellation.
-		return fmt.Errorf("%w: %w", ErrCancelNotCommitted, err)
+		return RefundResult{}, fmt.Errorf("%w: %w", ErrCancelNotCommitted, err)
 	}
-	return nil
+	return result, nil
 }
 
 func (r *orderRepository) FindItemsBySeller(ctx context.Context, sellerID int, status *models.FulfilmentStatus) ([]models.SellerOrderItem, error) {
@@ -345,6 +370,7 @@ func (r *orderRepository) FindItemsBySeller(ctx context.Context, sellerID int, s
 func (r *orderRepository) queryItems(ctx context.Context, where string, args ...any) ([]models.SellerOrderItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT i.id, i.order_id, o.buyer_id, i.listing_id, i.seller_id, i.title, i.price::float8, i.quantity, i.status,
+			i.refund_id, i.refund_status,
 			o.ship_name, o.ship_phone, o.ship_line1, o.ship_line2, o.ship_city, o.ship_state,
 			o.ship_postal_code, o.ship_country, o.created_at
 		FROM order_items i JOIN orders o ON o.id = i.order_id
@@ -359,13 +385,17 @@ func (r *orderRepository) queryItems(ctx context.Context, where string, args ...
 	for rows.Next() {
 		var it models.SellerOrderItem
 		var status string
+		var refundID, refundStatus sql.NullString
 		s := &it.Shipping
 		if err := rows.Scan(&it.ID, &it.OrderID, &it.BuyerID, &it.ListingID, &it.SellerID, &it.Title, &it.Price, &it.Quantity, &status,
+			&refundID, &refundStatus,
 			&s.Name, &s.Phone, &s.Line1, &s.Line2, &s.City, &s.State, &s.PostalCode, &s.Country, &it.CreatedAt); err != nil {
 			return nil, err
 		}
 		it.Price = math.Round(it.Price*100) / 100
 		it.Status = models.FulfilmentStatus(strings.ToUpper(status))
+		it.RefundID = refundID.String
+		it.RefundStatus = models.RefundStatus(strings.ToUpper(refundStatus.String))
 		items = append(items, it)
 	}
 	return items, rows.Err()

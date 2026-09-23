@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -24,6 +25,22 @@ func buyQty(t *testing.T, h *testutil.Harness, buyer, seller testutil.User, list
 	return items[0].ID
 }
 
+// refundIdempotencyKey mirrors repos.refundIdempotencyKey: a stable key
+// derived only from the Order Item's id.
+func refundIdempotencyKey(id string) string { return "order-item-refund-" + id }
+
+// refundStateOf reads the refund identifier and status persisted directly on
+// the order_items row, bypassing GraphQL, since the ticket only requires the
+// state to be written and readable, not exposed over the API yet.
+func refundStateOf(t *testing.T, h *testutil.Harness, id string) (refundID, refundStatus string) {
+	t.Helper()
+	var gotID, gotStatus sql.NullString
+	if err := h.DB.QueryRow(`SELECT refund_id, refund_status FROM order_items WHERE id = $1`, id).Scan(&gotID, &gotStatus); err != nil {
+		t.Fatal(err)
+	}
+	return gotID.String, gotStatus.String
+}
+
 func TestBuyerCancelsPaidItemRestocksAndRefunds(t *testing.T) {
 	h := testutil.NewHarness(t)
 	seller := h.CreateUser(t, "Artist")
@@ -44,10 +61,15 @@ func TestBuyerCancelsPaidItemRestocksAndRefunds(t *testing.T) {
 	if got := stockOf(t, h, vase); got != 5 {
 		t.Errorf("stock = %d, want 5 after restock", got)
 	}
-	refunds := h.Payments.Refunds()
-	want := payments.RefundRequest{ChargeID: "fake_payment_1", Amount: 2500, Reference: "item_" + id}
+	key := refundIdempotencyKey(id)
+	refunds := h.Gateway.Refunds()
+	want := payments.RefundOrderRequest{PaymentID: "fake_payment_1", Amount: 2500, IdempotencyKey: key, Reference: key}
 	if len(refunds) != 1 || refunds[0] != want {
 		t.Errorf("refunds = %+v, want one refund %+v", refunds, want)
+	}
+	refundID, refundStatus := refundStateOf(t, h, id)
+	if refundID == "" || refundStatus != "accepted" {
+		t.Errorf("refund_id %q refund_status %q, want a refund id and status accepted", refundID, refundStatus)
 	}
 }
 
@@ -62,9 +84,9 @@ func TestSellerCancelsPaidItem(t *testing.T) {
 		CancelOrderItem sellerOrderItem `json:"cancelOrderItem"`
 	}
 	h.GraphQL(t, seller.Token, cancelItemMut, map[string]any{"id": id}, &data)
-	if data.CancelOrderItem.Status != "CANCELLED" || stockOf(t, h, vase) != 5 || len(h.Payments.Refunds()) != 1 {
+	if data.CancelOrderItem.Status != "CANCELLED" || stockOf(t, h, vase) != 5 || len(h.Gateway.Refunds()) != 1 {
 		t.Errorf("status %s stock %d refunds %d, want CANCELLED, 5, 1",
-			data.CancelOrderItem.Status, stockOf(t, h, vase), len(h.Payments.Refunds()))
+			data.CancelOrderItem.Status, stockOf(t, h, vase), len(h.Gateway.Refunds()))
 	}
 }
 
@@ -81,8 +103,8 @@ func TestOnlyBuyerOrSellerMayCancel(t *testing.T) {
 	requireError(t, cancelItem(t, h, buyer.Token, "999999"), "not found")
 	requireError(t, cancelItem(t, h, buyer.Token, "abc"), "invalid")
 
-	if got := sellerItems(t, h, seller.Token, nil)[0].Status; got != "PAID" || stockOf(t, h, vase) != 4 || len(h.Payments.Refunds()) != 0 {
-		t.Errorf("rejected cancels changed state: status %s stock %d refunds %d", got, stockOf(t, h, vase), len(h.Payments.Refunds()))
+	if got := sellerItems(t, h, seller.Token, nil)[0].Status; got != "PAID" || stockOf(t, h, vase) != 4 || len(h.Gateway.Refunds()) != 0 {
+		t.Errorf("rejected cancels changed state: status %s stock %d refunds %d", got, stockOf(t, h, vase), len(h.Gateway.Refunds()))
 	}
 }
 
@@ -99,8 +121,8 @@ func TestOnlyPaidItemsCanBeCancelled(t *testing.T) {
 	updateItem(t, h, seller.Token, id, "DELIVERED")
 	requireError(t, cancelItem(t, h, buyer.Token, id), "cannot be cancelled")
 
-	if stockOf(t, h, vase) != 4 || len(h.Payments.Refunds()) != 0 {
-		t.Errorf("stock %d refunds %d, want 4 and 0", stockOf(t, h, vase), len(h.Payments.Refunds()))
+	if stockOf(t, h, vase) != 4 || len(h.Gateway.Refunds()) != 0 {
+		t.Errorf("stock %d refunds %d, want 4 and 0", stockOf(t, h, vase), len(h.Gateway.Refunds()))
 	}
 }
 
@@ -115,8 +137,8 @@ func TestCancellingTwiceIsRejectedAndRefundsOnce(t *testing.T) {
 		t.Fatalf("first cancel: %+v", res.Errors)
 	}
 	requireError(t, cancelItem(t, h, seller.Token, id), "cannot be cancelled")
-	if stockOf(t, h, vase) != 5 || len(h.Payments.Refunds()) != 1 {
-		t.Errorf("stock %d refunds %d, want 5 and 1", stockOf(t, h, vase), len(h.Payments.Refunds()))
+	if stockOf(t, h, vase) != 5 || len(h.Gateway.Refunds()) != 1 {
+		t.Errorf("stock %d refunds %d, want 5 and 1", stockOf(t, h, vase), len(h.Gateway.Refunds()))
 	}
 }
 
@@ -142,7 +164,7 @@ func TestRefundFailureLeavesItemAndStockUnchanged(t *testing.T) {
 	buyer := h.CreateUser(t, "Audience")
 	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5})
 	id := buyQty(t, h, buyer, seller, vase, 2)
-	h.Payments.FailRefunds(errors.New("gateway down"))
+	h.Gateway.FailRefund(errors.New("gateway down"))
 
 	requireError(t, cancelItem(t, h, buyer.Token, id), "refund failed")
 	if got := sellerItems(t, h, seller.Token, nil)[0].Status; got != "PAID" || stockOf(t, h, vase) != 3 {
@@ -150,7 +172,7 @@ func TestRefundFailureLeavesItemAndStockUnchanged(t *testing.T) {
 	}
 
 	// Retrying once the gateway recovers works.
-	h.Payments.FailRefunds(nil)
+	h.Gateway.FailRefund(nil)
 	if res := cancelItem(t, h, buyer.Token, id); len(res.Errors) != 0 {
 		t.Fatalf("retry: %+v", res.Errors)
 	}
@@ -188,7 +210,66 @@ func TestCancellingOneItemLeavesOthersInTheOrderAlone(t *testing.T) {
 	if stockOf(t, h, vase) != 5 || stockOf(t, h, bowl) != 4 {
 		t.Errorf("stock vase %d bowl %d, want 5 and 4", stockOf(t, h, vase), stockOf(t, h, bowl))
 	}
-	if r := h.Payments.Refunds(); len(r) != 1 || r[0].Amount != 1000 {
+	if r := h.Gateway.Refunds(); len(r) != 1 || r[0].Amount != 1000 {
 		t.Errorf("refunds = %+v, want one of 1000", r)
+	}
+}
+
+func TestCancelRefundAcceptedButPendingStillCommits(t *testing.T) {
+	h := testutil.NewHarness(t)
+	seller := h.CreateUser(t, "Artist")
+	buyer := h.CreateUser(t, "Audience")
+	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5, "price": 12.5})
+	id := buyQty(t, h, buyer, seller, vase, 2)
+
+	// The gateway accepts the refund but has not yet settled it with the bank.
+	h.Gateway.NextRefundStatus("pending")
+
+	var data struct {
+		CancelOrderItem sellerOrderItem `json:"cancelOrderItem"`
+	}
+	h.GraphQL(t, buyer.Token, cancelItemMut, map[string]any{"id": id}, &data)
+	if data.CancelOrderItem.Status != "CANCELLED" {
+		t.Errorf("status = %s, want CANCELLED", data.CancelOrderItem.Status)
+	}
+	if got := stockOf(t, h, vase); got != 5 {
+		t.Errorf("stock = %d, want 5 after restock", got)
+	}
+	refundID, refundStatus := refundStateOf(t, h, id)
+	if refundID == "" || refundStatus != "accepted" {
+		t.Errorf("refund_id %q refund_status %q, want a refund id and status accepted", refundID, refundStatus)
+	}
+}
+
+func TestCancelRefundConflictTreatedAsSuccess(t *testing.T) {
+	h := testutil.NewHarness(t)
+	seller := h.CreateUser(t, "Artist")
+	buyer := h.CreateUser(t, "Audience")
+	vase := seedListing(t, h, seller, categoryID(t, h, "Pottery"), map[string]any{"stock": 5, "price": 12.5})
+	id := buyQty(t, h, buyer, seller, vase, 2)
+
+	// Simulate the gateway already having accepted this refund - the outcome
+	// a real gateway would report with a 409 conflict on a repeated
+	// idempotency key - before the cancellation ever calls it.
+	key := refundIdempotencyKey(id)
+	h.Gateway.SeedRefund(key, payments.RefundOrderResult{RefundID: "rfnd_existing", Status: "processed"})
+
+	var data struct {
+		CancelOrderItem sellerOrderItem `json:"cancelOrderItem"`
+	}
+	h.GraphQL(t, buyer.Token, cancelItemMut, map[string]any{"id": id}, &data)
+	if data.CancelOrderItem.Status != "CANCELLED" {
+		t.Errorf("status = %s, want CANCELLED", data.CancelOrderItem.Status)
+	}
+	if got := stockOf(t, h, vase); got != 5 {
+		t.Errorf("stock = %d, want 5 after restock", got)
+	}
+	// The conflict replay is not a fresh refund.
+	if refunds := h.Gateway.Refunds(); len(refunds) != 0 {
+		t.Errorf("refunds = %+v, want none: the conflict was a replay, not a fresh refund", refunds)
+	}
+	refundID, refundStatus := refundStateOf(t, h, id)
+	if refundID != "rfnd_existing" || refundStatus != "accepted" {
+		t.Errorf("refund_id %q refund_status %q, want rfnd_existing and accepted", refundID, refundStatus)
 	}
 }

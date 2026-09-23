@@ -41,18 +41,19 @@ type OrderService interface {
 	// repeating or reversing gets ErrInvalidStatusTransition.
 	UpdateItemStatus(ctx context.Context, sellerID, itemID int, status models.FulfilmentStatus) (*models.SellerOrderItem, error)
 	// CancelItem lets the item's Buyer or Seller cancel it while it is paid,
-	// restocking the Listing and refunding through the PaymentProvider. Anyone
+	// restocking the Listing and refunding through the payment gateway. Anyone
 	// else gets ErrOrderItemCancelForbidden, a non-paid item
 	// repos.ErrItemNotCancellable, and a failed refund ErrRefundFailed with
-	// nothing changed. Refunds carry the item's reference, so retrying a cancel
-	// that failed after its refund does not refund twice.
+	// nothing changed. Refunds carry a stable idempotency key derived from the
+	// item, so retrying a cancel that failed after its refund does not refund
+	// twice; a refund the gateway has accepted but not yet settled, or a
+	// conflict meaning it was already accepted, both count as success.
 	CancelItem(ctx context.Context, userID, itemID int) (*models.SellerOrderItem, error)
 }
 
 type orderService struct {
-	repo     repos.OrderRepository
-	payments payments.PaymentProvider
-	gateway  payments.Gateway
+	repo    repos.OrderRepository
+	gateway payments.Gateway
 }
 
 // normalizeShipping trims ship's fields and rejects it if any but the
@@ -71,8 +72,8 @@ func normalizeShipping(ship models.ShippingAddress) (models.ShippingAddress, err
 	return ship, nil
 }
 
-func NewOrderService(repo repos.OrderRepository, provider payments.PaymentProvider, gateway payments.Gateway) OrderService {
-	return &orderService{repo: repo, payments: provider, gateway: gateway}
+func NewOrderService(repo repos.OrderRepository, gateway payments.Gateway) OrderService {
+	return &orderService{repo: repo, gateway: gateway}
 }
 
 func (s *orderService) ConfirmCheckoutSessionPayment(ctx context.Context, buyerID int, confirmation payments.ConfirmationRequest) (*models.Order, error) {
@@ -127,15 +128,23 @@ func (s *orderService) CancelItem(ctx context.Context, userID, itemID int) (*mod
 	if userID != item.BuyerID && userID != item.SellerID {
 		return nil, ErrOrderItemCancelForbidden
 	}
-	err = s.repo.CancelItem(ctx, itemID, func(ctx context.Context, chargeID string, amountCents int64, reference string) error {
-		if err := s.payments.Refund(ctx, payments.RefundRequest{ChargeID: chargeID, Amount: amountCents, Reference: reference}); err != nil {
-			return fmt.Errorf("%w: %w", ErrRefundFailed, err)
+	result, err := s.repo.CancelItem(ctx, itemID, func(ctx context.Context, chargeID string, amountCents int64, idempotencyKey string) (repos.RefundResult, error) {
+		res, err := s.gateway.Refund(ctx, payments.RefundOrderRequest{
+			PaymentID:      chargeID,
+			Amount:         amountCents,
+			IdempotencyKey: idempotencyKey,
+			Reference:      idempotencyKey,
+		})
+		if err != nil {
+			return repos.RefundResult{}, fmt.Errorf("%w: %w", ErrRefundFailed, err)
 		}
-		return nil
+		return repos.RefundResult{RefundID: res.RefundID, Status: res.Status}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	item.Status = models.StatusCancelled
+	item.RefundID = result.RefundID
+	item.RefundStatus = models.RefundAccepted
 	return item, nil
 }
