@@ -218,7 +218,7 @@ func TestConfirmCheckoutSessionPaymentRejectsUnknownGatewayOrderID(t *testing.T)
 	requireError(t, confirmPayment(t, h, buyer.Token, confirmation), "not found")
 }
 
-func TestConfirmCheckoutSessionPaymentRejectsANonOpenSession(t *testing.T) {
+func TestConfirmCheckoutSessionPaymentRejectsACancelledSession(t *testing.T) {
 	h := testutil.NewHarness(t)
 	seller := h.CreateUser(t, "Artist")
 	buyer := h.CreateUser(t, "Audience")
@@ -227,13 +227,13 @@ func TestConfirmCheckoutSessionPaymentRejectsANonOpenSession(t *testing.T) {
 	session := openCheckoutSession(t, h, buyer)
 	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
 
-	if _, err := h.DB.Exec(`UPDATE checkout_sessions SET status = 'expired' WHERE id = $1`, session.ID); err != nil {
+	if _, err := h.DB.Exec(`UPDATE checkout_sessions SET status = 'cancelled' WHERE id = $1`, session.ID); err != nil {
 		t.Fatal(err)
 	}
 
 	requireError(t, confirmPayment(t, h, buyer.Token, confirmation), "cannot be confirmed")
 	if orderCount(t, h) != 0 {
-		t.Error("confirming an expired session produced an order")
+		t.Error("confirming a cancelled session produced an order")
 	}
 }
 

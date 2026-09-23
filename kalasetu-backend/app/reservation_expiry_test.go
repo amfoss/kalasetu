@@ -87,7 +87,11 @@ func TestExpiredCheckoutSessionIsReleasedLazilyForAnotherBuyer(t *testing.T) {
 	}
 }
 
-func TestExpiredCheckoutSessionCannotBeConfirmed(t *testing.T) {
+// TestLatePaymentAfterExpiryWithStockAvailableProducesAnOrder covers a
+// payment that lands just after its reservation expired, while nobody else
+// wanted the item: fulfilment re-acquires the same Stock and honours it,
+// exactly as issue 08 requires.
+func TestLatePaymentAfterExpiryWithStockAvailableProducesAnOrder(t *testing.T) {
 	h := testutil.NewHarness(t)
 	seller := h.CreateUser(t, "Artist")
 	buyer := h.CreateUser(t, "Audience")
@@ -97,16 +101,22 @@ func TestExpiredCheckoutSessionCannotBeConfirmed(t *testing.T) {
 	confirmation := h.Gateway.Confirm(session.GatewayOrderID)
 	expireSession(t, h, session.ID)
 
-	requireError(t, confirmPayment(t, h, buyer.Token, confirmation), "cannot be confirmed")
+	res := confirmPayment(t, h, buyer.Token, confirmation)
+	if len(res.Errors) != 0 {
+		t.Fatalf("late confirm: %+v", res.Errors)
+	}
 
-	if orderCount(t, h) != 0 {
-		t.Error("confirming an expired session produced an order")
+	if orderCount(t, h) != 1 {
+		t.Error("late payment with stock available did not produce an order")
 	}
-	if got := stockOf(t, h, vase); got != 5 {
-		t.Errorf("stock = %d, want 5 (released by the failed confirm attempt)", got)
+	if got := stockOf(t, h, vase); got != 4 {
+		t.Errorf("stock = %d, want 4 (re-acquired and consumed by the late payment)", got)
 	}
-	if got := sessionStatus(t, h, session.ID); got != "expired" {
-		t.Errorf("session status = %s, want expired", got)
+	if got := sessionStatus(t, h, session.ID); got != "consumed" {
+		t.Errorf("session status = %s, want consumed", got)
+	}
+	if n := len(h.Gateway.Refunds()); n != 0 {
+		t.Errorf("refunds = %d, want 0 (the late payment was honoured, not refunded)", n)
 	}
 }
 

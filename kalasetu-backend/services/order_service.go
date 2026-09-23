@@ -37,14 +37,19 @@ type OrderService interface {
 	// before anything is created, then fulfils the caller's Checkout Session
 	// into an Order. See repos.OrderRepository.ConfirmCheckoutSession for the
 	// failure modes; a failed signature verification returns
-	// ErrPaymentConfirmationInvalid.
+	// ErrPaymentConfirmationInvalid. A late payment whose Stock could not be
+	// re-acquired is refunded automatically and reported as
+	// repos.ErrCheckoutSessionRefunded rather than an Order.
 	ConfirmCheckoutSessionPayment(ctx context.Context, buyerID int, confirmation payments.ConfirmationRequest) (*models.Order, error)
 	// FulfilFromWebhook is the webhook backstop's entry into the same
 	// fulfilment ConfirmCheckoutSessionPayment runs, for a payment-captured
 	// or order-paid notification whose signature the caller has already
-	// verified. See repos.OrderRepository.FulfilCheckoutSessionFromWebhook
-	// for the delivered/idempotency contract.
-	FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (order *models.Order, delivered bool, err error)
+	// verified. amountCents is the gateway's own account of the payment,
+	// used only if gatewayOrderID matches no Checkout Session at all. See
+	// repos.OrderRepository.FulfilCheckoutSessionFromWebhook for the
+	// delivered/idempotency contract and how a late payment or an unmatched
+	// payment is refunded automatically rather than surfaced as an error.
+	FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string, amountCents int64) (order *models.Order, delivered bool, err error)
 	// AdvanceRefundFromWebhook is a refund-processed or refund-failed
 	// notification's entry: it advances the Order Item whose refund_id
 	// matches refundID to the RefundStatus eventType denotes. See
@@ -107,11 +112,30 @@ func (s *orderService) ConfirmCheckoutSessionPayment(ctx context.Context, buyerI
 	if err := s.gateway.VerifyConfirmation(ctx, confirmation); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrPaymentConfirmationInvalid, err)
 	}
-	return s.repo.ConfirmCheckoutSession(ctx, buyerID, confirmation.GatewayOrderID, confirmation.PaymentID)
+	return s.repo.ConfirmCheckoutSession(ctx, buyerID, confirmation.GatewayOrderID, confirmation.PaymentID, s.refundFunc())
 }
 
-func (s *orderService) FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (*models.Order, bool, error) {
-	return s.repo.FulfilCheckoutSessionFromWebhook(ctx, eventID, eventType, gatewayOrderID, paymentID)
+func (s *orderService) FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string, amountCents int64) (*models.Order, bool, error) {
+	return s.repo.FulfilCheckoutSessionFromWebhook(ctx, eventID, eventType, gatewayOrderID, paymentID, amountCents, s.refundFunc())
+}
+
+// refundFunc adapts the gateway's Refund call into a repos.RefundFunc, the
+// shape every refunding repo method (cancellation, a late payment, an
+// unmatched payment) takes so the actual gateway call and its error mapping
+// live in exactly one place.
+func (s *orderService) refundFunc() repos.RefundFunc {
+	return func(ctx context.Context, chargeID string, amountCents int64, idempotencyKey string) (repos.RefundResult, error) {
+		res, err := s.gateway.Refund(ctx, payments.RefundOrderRequest{
+			PaymentID:      chargeID,
+			Amount:         amountCents,
+			IdempotencyKey: idempotencyKey,
+			Reference:      idempotencyKey,
+		})
+		if err != nil {
+			return repos.RefundResult{}, fmt.Errorf("%w: %w", ErrRefundFailed, err)
+		}
+		return repos.RefundResult{RefundID: res.RefundID, Status: res.Status}, nil
+	}
 }
 
 func (s *orderService) ReleaseFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID string) (bool, error) {
@@ -171,18 +195,7 @@ func (s *orderService) CancelItem(ctx context.Context, userID, itemID int) (*mod
 	if userID != item.BuyerID && userID != item.SellerID {
 		return nil, ErrOrderItemCancelForbidden
 	}
-	result, err := s.repo.CancelItem(ctx, itemID, func(ctx context.Context, chargeID string, amountCents int64, idempotencyKey string) (repos.RefundResult, error) {
-		res, err := s.gateway.Refund(ctx, payments.RefundOrderRequest{
-			PaymentID:      chargeID,
-			Amount:         amountCents,
-			IdempotencyKey: idempotencyKey,
-			Reference:      idempotencyKey,
-		})
-		if err != nil {
-			return repos.RefundResult{}, fmt.Errorf("%w: %w", ErrRefundFailed, err)
-		}
-		return repos.RefundResult{RefundID: res.RefundID, Status: res.Status}, nil
-	})
+	result, err := s.repo.CancelItem(ctx, itemID, s.refundFunc())
 	if err != nil {
 		return nil, err
 	}

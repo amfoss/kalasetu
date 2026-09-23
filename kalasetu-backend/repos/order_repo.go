@@ -27,10 +27,16 @@ var (
 	// ErrCheckoutSessionForbidden means the caller is not the Checkout
 	// Session's Buyer.
 	ErrCheckoutSessionForbidden = errors.New("forbidden: this checkout session is not yours")
-	// ErrCheckoutSessionNotConfirmable means the Checkout Session is neither
-	// open nor already consumed (it is cancelled or expired), so it cannot
-	// be turned into an Order.
+	// ErrCheckoutSessionNotConfirmable means the Checkout Session is
+	// cancelled, so it cannot be turned into an Order.
 	ErrCheckoutSessionNotConfirmable = errors.New("checkout session cannot be confirmed: it is not open")
+	// ErrCheckoutSessionRefunded means the Checkout Session had expired and,
+	// by the time this payment arrived, its Stock could not be re-acquired:
+	// the payment has been refunded automatically (recorded on the session)
+	// and no Order was created. The transaction that produced this error
+	// still commits its side effects (the release and the refund record) -
+	// callers must not treat it like a failure that rolled everything back.
+	ErrCheckoutSessionRefunded = errors.New("checkout session expired and its stock is no longer available: the payment has been refunded automatically")
 )
 
 // RefundFunc refunds amountCents of the Order's charge, identified by
@@ -65,9 +71,13 @@ type OrderRepository interface {
 	// returns the Order that resulted the first time rather than creating a
 	// second one. It returns ErrCheckoutSessionNotFound if no session matches
 	// gatewayOrderID, ErrCheckoutSessionForbidden if it is not buyerID's, and
-	// ErrCheckoutSessionNotConfirmable if it is neither open nor already
-	// consumed (e.g. cancelled or expired).
-	ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string) (*models.Order, error)
+	// ErrCheckoutSessionNotConfirmable if it is cancelled. If the session had
+	// expired, this is a late payment: the same guarded Stock acquisition
+	// Checkout Session creation uses is re-attempted, and either succeeds
+	// (the Order is created normally) or fails, in which case refund is
+	// called and ErrCheckoutSessionRefunded is returned - a "failure" whose
+	// side effects (the release and the refund record) are still committed.
+	ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string, refund RefundFunc) (*models.Order, error)
 	// FulfilCheckoutSessionFromWebhook is the webhook backstop's entry into
 	// the same fulfilment ConfirmCheckoutSession runs: it trusts the caller
 	// to have already verified the notification's signature, so it takes no
@@ -80,8 +90,14 @@ type OrderRepository interface {
 	// order is nil and nothing else was touched. A fresh delivery still goes
 	// through ConfirmCheckoutSession's own idempotency (keyed on
 	// gatewayOrderID), so a webhook racing a Buyer's own confirmation of the
-	// same session also produces exactly one Order.
-	FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (order *models.Order, delivered bool, err error)
+	// same session also produces exactly one Order. A late payment (the
+	// session had expired) is handled the same way ConfirmCheckoutSession
+	// handles one, silently: an automatic refund is not reported as an
+	// error, since there is no caller to surface it to. amountCents, the
+	// gateway's own account of the payment, is used only when gatewayOrderID
+	// matches no Checkout Session at all - that payment is recorded and
+	// refunded too, rather than ignored or retried forever.
+	FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string, amountCents int64, refund RefundFunc) (order *models.Order, delivered bool, err error)
 	// AdvanceRefundFromWebhook is a refund-processed or refund-failed
 	// notification's entry: eventID is recorded as delivered in the same
 	// transaction that advances the Order Item whose refund_id matches
@@ -140,24 +156,27 @@ func NewOrderRepository(db *sql.DB) OrderRepository {
 	return &orderRepository{db: db}
 }
 
-func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string) (*models.Order, error) {
+func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string, refund RefundFunc) (*models.Order, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	order, err := r.fulfilCheckoutSessionTx(ctx, tx, gatewayOrderID, paymentID, &buyerID)
-	if err != nil {
+	order, err := r.fulfilCheckoutSessionTx(ctx, tx, gatewayOrderID, paymentID, &buyerID, refund)
+	if err != nil && !errors.Is(err, ErrCheckoutSessionRefunded) {
 		return nil, err
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
+	// A late payment that was refunded still committed the release and the
+	// refund record: commit it here too, then surface the "error" as the
+	// Buyer's answer instead of treating it like nothing happened.
+	if commitErr := tx.Commit(); commitErr != nil {
+		return nil, commitErr
 	}
-	return order, nil
+	return order, err
 }
 
-func (r *orderRepository) FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (*models.Order, bool, error) {
+func (r *orderRepository) FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string, amountCents int64, refund RefundFunc) (*models.Order, bool, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, false, err
@@ -179,14 +198,96 @@ func (r *orderRepository) FulfilCheckoutSessionFromWebhook(ctx context.Context, 
 		return nil, true, tx.Commit()
 	}
 
-	order, err := r.fulfilCheckoutSessionTx(ctx, tx, gatewayOrderID, paymentID, nil)
-	if err != nil {
+	order, err := r.fulfilCheckoutSessionTx(ctx, tx, gatewayOrderID, paymentID, nil, refund)
+	if errors.Is(err, ErrCheckoutSessionNotFound) {
+		// No Checkout Session was ever opened for this gateway order id: the
+		// payment is recorded and refunded rather than left unresolved.
+		if err := recordUnmatchedPaymentTx(ctx, tx, gatewayOrderID, paymentID, eventType, amountCents, refund); err != nil {
+			return nil, false, err
+		}
+		return nil, false, tx.Commit()
+	}
+	if err != nil && !errors.Is(err, ErrCheckoutSessionRefunded) {
 		return nil, false, err
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, false, err
+	if commitErr := tx.Commit(); commitErr != nil {
+		return nil, false, commitErr
+	}
+	if err != nil {
+		// ErrCheckoutSessionRefunded: a late payment was refunded
+		// automatically and recorded. There is no caller to report it to, so
+		// this is a successful delivery, not an error.
+		return nil, false, nil
 	}
 	return order, false, nil
+}
+
+// recordUnmatchedPaymentTx refunds a payment the gateway reports for a
+// gateway order id no Checkout Session was ever opened for, and records the
+// attempt in unmatched_payments. It runs inside the caller's transaction, so
+// the record and the delivery it is part of either commit together or not
+// at all.
+func recordUnmatchedPaymentTx(ctx context.Context, tx *sql.Tx, gatewayOrderID, paymentID, eventType string, amountCents int64, refund RefundFunc) error {
+	result, err := refund(ctx, paymentID, amountCents, fmt.Sprintf("unmatched-payment-refund-%s", paymentID))
+	if err != nil {
+		return err
+	}
+	refundID := sql.NullString{String: result.RefundID, Valid: result.RefundID != ""}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO unmatched_payments (gateway_order_id, payment_id, event_type, amount, reason, refund_id, refund_status)
+		VALUES ($1, $2, $3, $4, $5, $6, 'accepted')`,
+		gatewayOrderID, paymentID, eventType, float64(amountCents)/100, "no checkout session matches this gateway order id", refundID)
+	return err
+}
+
+// reacquireStockTx attempts, in one all-or-nothing pass, to reserve Stock
+// for every item sessionID's Checkout Session snapshot needs: every
+// Listing's Stock is locked and checked before any of it is decremented, so
+// a late payment that cannot be fully honoured leaves Stock untouched rather
+// than holding back part of it for no Order. Listings are locked in a fixed
+// order, the way Create reserves them, to avoid deadlocking against a
+// concurrent checkout doing the same.
+func reacquireStockTx(ctx context.Context, tx *sql.Tx, sessionID int) (bool, error) {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT listing_id, quantity FROM checkout_session_items
+		WHERE checkout_session_id = $1 ORDER BY listing_id`, sessionID)
+	if err != nil {
+		return false, err
+	}
+	type need struct{ listingID, quantity int }
+	var needs []need
+	for rows.Next() {
+		var n need
+		if err := rows.Scan(&n.listingID, &n.quantity); err != nil {
+			rows.Close()
+			return false, err
+		}
+		needs = append(needs, n)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return false, err
+	}
+	rows.Close()
+
+	for _, n := range needs {
+		var stock int
+		var archivedAt sql.NullTime
+		if err := tx.QueryRowContext(ctx,
+			`SELECT stock, archived_at FROM listings WHERE id = $1 FOR UPDATE`, n.listingID).Scan(&stock, &archivedAt); err != nil {
+			return false, err
+		}
+		if archivedAt.Valid || stock < n.quantity {
+			return false, nil
+		}
+	}
+	for _, n := range needs {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE listings SET stock = stock - $2 WHERE id = $1`, n.listingID, n.quantity); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 // fulfilCheckoutSessionTx is the fulfilment routine both ConfirmCheckoutSession
@@ -199,18 +300,30 @@ func (r *orderRepository) FulfilCheckoutSessionFromWebhook(ctx context.Context, 
 // session's Buyer or ErrCheckoutSessionForbidden is returned; a nil buyerID
 // trusts the caller (the webhook path, authenticated by the gateway's
 // signature instead of a Buyer's session).
-func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.Tx, gatewayOrderID, paymentID string, buyerID *int) (*models.Order, error) {
+//
+// A session that is still open and unexpired is fulfilled directly, its
+// reservation inherited. One that has expired (whether already swept or
+// only now discovered to be past its expiry) is a late payment: the
+// reservation is gone, so the same guarded Stock acquisition Checkout
+// Session creation uses is re-attempted. If it succeeds the Order is
+// created exactly as for a live session; if it fails - genuine contention,
+// not just a slow payment - refund is called and ErrCheckoutSessionRefunded
+// is returned. A cancelled session is never a late payment: it returns
+// ErrCheckoutSessionNotConfirmable, unchanged.
+func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.Tx, gatewayOrderID, paymentID string, buyerID *int, refund RefundFunc) (*models.Order, error) {
 	var sessionID, sessBuyerID int
 	var status string
 	var expiresAt time.Time
+	var refunded bool
 	ship := models.ShippingAddress{}
 	var total float64
 	err := tx.QueryRowContext(ctx, `
 		SELECT id, buyer_id, status, ship_name, ship_phone, ship_line1, ship_line2,
-			ship_city, ship_state, ship_postal_code, ship_country, total::float8, expires_at
+			ship_city, ship_state, ship_postal_code, ship_country, total::float8, expires_at,
+			refund_id IS NOT NULL
 		FROM checkout_sessions WHERE gateway_order_id = $1 FOR UPDATE`, gatewayOrderID).Scan(
 		&sessionID, &sessBuyerID, &status, &ship.Name, &ship.Phone, &ship.Line1, &ship.Line2,
-		&ship.City, &ship.State, &ship.PostalCode, &ship.Country, &total, &expiresAt)
+		&ship.City, &ship.State, &ship.PostalCode, &ship.Country, &total, &expiresAt, &refunded)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrCheckoutSessionNotFound
 	}
@@ -234,23 +347,64 @@ func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.T
 		}
 		return order, nil
 	}
-	if status != "open" {
-		return nil, ErrCheckoutSessionNotConfirmable
+
+	if status == "open" && expiresAt.After(time.Now()) {
+		return r.createOrderFromSessionTx(ctx, tx, sessionID, sessBuyerID, paymentID, ship, total)
 	}
-	if !expiresAt.After(time.Now()) {
-		// Expired but not yet swept: release it now rather than let a late
-		// confirmation succeed against a session that is no longer live. The
-		// release is committed here, unlike the rest of this routine, since
-		// the caller's transaction otherwise rolls back on the error return.
+
+	if status == "open" {
+		// Expired but not yet swept: release it now, as the first step of
+		// handling this as a late payment rather than waiting for the
+		// sweeper to do it later.
 		if err := releaseSessionTx(ctx, tx, sessionID, "expired"); err != nil {
 			return nil, err
 		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
+		status = "expired"
+	}
+	if status != "expired" {
+		// cancelled: never a late payment, nothing to fulfil or refund here.
 		return nil, ErrCheckoutSessionNotConfirmable
 	}
+	if refunded {
+		// A previous attempt already refunded this late payment: stock may
+		// have freed up again since (e.g. the buyer who took it cancelled),
+		// but re-fulfilling now would ship an Order the Buyer was already
+		// made whole for. The refund stands; nothing more to do.
+		return nil, ErrCheckoutSessionRefunded
+	}
 
+	// The reservation is gone: this is a late payment. Most land when
+	// nobody else wanted the item, so re-attempt the same guarded Stock
+	// acquisition Checkout Session creation uses; only genuine contention
+	// becomes a refund.
+	ok, err := reacquireStockTx(ctx, tx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return r.createOrderFromSessionTx(ctx, tx, sessionID, sessBuyerID, paymentID, ship, total)
+	}
+
+	totalCents := int64(math.Round(total * 100))
+	result, err := refund(ctx, paymentID, totalCents, fmt.Sprintf("checkout-session-refund-%d", sessionID))
+	if err != nil {
+		return nil, err
+	}
+	refundID := sql.NullString{String: result.RefundID, Valid: result.RefundID != ""}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE checkout_sessions SET refund_id = $2, refund_status = 'accepted', refund_reason = $3 WHERE id = $1`,
+		sessionID, refundID, "stock was no longer available when the late payment arrived"); err != nil {
+		return nil, err
+	}
+	return nil, ErrCheckoutSessionRefunded
+}
+
+// createOrderFromSessionTx creates the Order and its Items from sessionID's
+// snapshot (ship, total and its checkout_session_items rows), marks the
+// session consumed and empties sessBuyerID's Cart. It is the second half of
+// fulfilment, shared by a live confirmation and a late payment whose Stock
+// was just re-acquired.
+func (r *orderRepository) createOrderFromSessionTx(ctx context.Context, tx *sql.Tx, sessionID, sessBuyerID int, paymentID string, ship models.ShippingAddress, total float64) (*models.Order, error) {
 	itemRows, err := tx.QueryContext(ctx, `
 		SELECT listing_id, seller_id, title, price::float8, quantity
 		FROM checkout_session_items WHERE checkout_session_id = $1 ORDER BY id`, sessionID)

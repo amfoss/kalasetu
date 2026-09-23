@@ -44,6 +44,10 @@ type razorpayWebhookPayload struct {
 		Entity struct {
 			ID      string `json:"id"`
 			OrderID string `json:"order_id"`
+			// Amount is in the smallest currency unit (e.g. paise), used
+			// only when OrderID matches no Checkout Session at all: there
+			// is nothing local to derive a refund amount from.
+			Amount int64 `json:"amount"`
 		} `json:"entity"`
 	} `json:"payment"`
 }
@@ -119,20 +123,15 @@ func (h *RazorpayWebhookHandler) Handle(c *gin.Context) {
 	sum := sha256.Sum256(rawBody)
 	eventID := hex.EncodeToString(sum[:])
 
-	_, _, err = h.orders.FulfilFromWebhook(c.Request.Context(), eventID, event.Event, payload.Payment.Entity.OrderID, payload.Payment.Entity.ID)
+	_, _, err = h.orders.FulfilFromWebhook(c.Request.Context(), eventID, event.Event,
+		payload.Payment.Entity.OrderID, payload.Payment.Entity.ID, payload.Payment.Entity.Amount)
 	if err != nil {
 		if errors.Is(err, repos.ErrCheckoutSessionNotConfirmable) {
-			// The session is cancelled or expired: nothing to fulfil, and
-			// retrying will not change that.
+			// The session is cancelled: nothing to fulfil, and retrying will
+			// not change that. A session that had merely expired is not this
+			// branch - FulfilFromWebhook handles that as a late payment
+			// itself, refunding it automatically rather than erroring.
 			c.JSON(http.StatusOK, gin.H{"status": "ignored"})
-			return
-		}
-		if errors.Is(err, repos.ErrCheckoutSessionNotFound) {
-			// No session matches this gateway order id yet. Unlike an
-			// expired or cancelled session, this can be transient, so
-			// answer with an error rather than "ignored" and let Razorpay
-			// retry the delivery.
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "no checkout session for this gateway order id"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fulfil checkout session"})
