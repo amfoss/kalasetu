@@ -23,6 +23,14 @@ var fulfillingEvents = map[string]bool{
 	"order.paid":       true,
 }
 
+// refundEvents are the webhook event types that advance a cancelled Order
+// Item's refund status. Every other event is acknowledged without any
+// refund attempt.
+var refundEvents = map[string]bool{
+	"refund.processed": true,
+	"refund.failed":    true,
+}
+
 // razorpayWebhookPayload is the shape of the "payment" entity Razorpay
 // includes in both a payment.captured and an order.paid webhook's payload.
 type razorpayWebhookPayload struct {
@@ -32,6 +40,16 @@ type razorpayWebhookPayload struct {
 			OrderID string `json:"order_id"`
 		} `json:"entity"`
 	} `json:"payment"`
+}
+
+// razorpayRefundWebhookPayload is the shape of the "refund" entity Razorpay
+// includes in both a refund.processed and a refund.failed webhook's payload.
+type razorpayRefundWebhookPayload struct {
+	Refund struct {
+		Entity struct {
+			ID string `json:"id"`
+		} `json:"entity"`
+	} `json:"refund"`
 }
 
 // RazorpayWebhookHandler receives Razorpay's webhook notifications: the
@@ -61,6 +79,11 @@ func (h *RazorpayWebhookHandler) Handle(c *gin.Context) {
 	event, err := h.gateway.ParseWebhook(c.Request.Context(), rawBody, c.GetHeader("X-Razorpay-Signature"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook signature"})
+		return
+	}
+
+	if refundEvents[event.Event] {
+		h.handleRefundEvent(c, rawBody, event)
 		return
 	}
 
@@ -102,6 +125,32 @@ func (h *RazorpayWebhookHandler) Handle(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fulfil checkout session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// handleRefundEvent advances the refund status of the Order Item a
+// refund.processed or refund.failed notification refers to. An unknown
+// refund identifier is acknowledged rather than treated as an error: it may
+// belong to a refund KalaSetu never recorded a refund_id for.
+func (h *RazorpayWebhookHandler) handleRefundEvent(c *gin.Context, rawBody []byte, event payments.WebhookEvent) {
+	var payload razorpayRefundWebhookPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "malformed webhook payload"})
+		return
+	}
+	if payload.Refund.Entity.ID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "webhook payload is missing refund identifier"})
+		return
+	}
+
+	sum := sha256.Sum256(rawBody)
+	eventID := hex.EncodeToString(sum[:])
+
+	if _, err := h.orders.AdvanceRefundFromWebhook(c.Request.Context(), eventID, event.Event, payload.Refund.Entity.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not advance refund status"})
 		return
 	}
 

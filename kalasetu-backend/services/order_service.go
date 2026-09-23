@@ -24,6 +24,14 @@ var (
 	ErrPaymentConfirmationInvalid = errors.New("payment confirmation could not be verified")
 )
 
+// refundWebhookStatus maps a Razorpay refund webhook's event type to the
+// RefundStatus it advances the matching Order Item to. The handler only
+// calls AdvanceRefundFromWebhook for event types it knows are in here.
+var refundWebhookStatus = map[string]models.RefundStatus{
+	"refund.processed": models.RefundSettled,
+	"refund.failed":    models.RefundFailed,
+}
+
 type OrderService interface {
 	// ConfirmCheckoutSessionPayment verifies confirmation against the gateway
 	// before anything is created, then fulfils the caller's Checkout Session
@@ -37,6 +45,13 @@ type OrderService interface {
 	// verified. See repos.OrderRepository.FulfilCheckoutSessionFromWebhook
 	// for the delivered/idempotency contract.
 	FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (order *models.Order, delivered bool, err error)
+	// AdvanceRefundFromWebhook is a refund-processed or refund-failed
+	// notification's entry: it advances the Order Item whose refund_id
+	// matches refundID to the RefundStatus eventType denotes. See
+	// repos.OrderRepository.AdvanceRefundFromWebhook for the
+	// delivered/idempotency contract and why an unmatched refundID is not an
+	// error.
+	AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string) (delivered bool, err error)
 	// MyOrders returns the buyer's Orders, newest first.
 	MyOrders(ctx context.Context, buyerID int) ([]models.Order, error)
 	// SellerOrderItems returns the Order Items for the seller's Listings, newest
@@ -91,6 +106,14 @@ func (s *orderService) ConfirmCheckoutSessionPayment(ctx context.Context, buyerI
 
 func (s *orderService) FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (*models.Order, bool, error) {
 	return s.repo.FulfilCheckoutSessionFromWebhook(ctx, eventID, eventType, gatewayOrderID, paymentID)
+}
+
+func (s *orderService) AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string) (bool, error) {
+	status, ok := refundWebhookStatus[eventType]
+	if !ok {
+		return false, fmt.Errorf("order service: unhandled refund webhook event type %q", eventType)
+	}
+	return s.repo.AdvanceRefundFromWebhook(ctx, eventID, eventType, refundID, status)
 }
 
 func (s *orderService) MyOrders(ctx context.Context, buyerID int) ([]models.Order, error) {

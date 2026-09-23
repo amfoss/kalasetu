@@ -81,6 +81,19 @@ type OrderRepository interface {
 	// gatewayOrderID), so a webhook racing a Buyer's own confirmation of the
 	// same session also produces exactly one Order.
 	FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (order *models.Order, delivered bool, err error)
+	// AdvanceRefundFromWebhook is a refund-processed or refund-failed
+	// notification's entry: eventID is recorded as delivered in the same
+	// transaction that advances the Order Item whose refund_id matches
+	// refundID to status, so the two either happen together or not at all.
+	// delivered reports whether eventID had already been recorded by an
+	// earlier call, in which case nothing else was touched. No Order Item
+	// matching refundID is not an error - refundID may not be tracked yet,
+	// or ever. The advance only applies from RefundAccepted, so a
+	// redelivery of the opposite outcome out of order cannot flip an
+	// already-settled or already-failed refund back the other way. The
+	// fulfilment status is never touched, since cancellation and refund
+	// settlement are separate facts.
+	AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string, status models.RefundStatus) (delivered bool, err error)
 	// FindByBuyer returns the buyer's orders with their items, newest first, never nil.
 	FindByBuyer(ctx context.Context, buyerID int) ([]models.Order, error)
 	// FindItemsBySeller returns the Order Items for the seller's Listings, newest
@@ -267,6 +280,45 @@ func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.T
 	}
 
 	return order, nil
+}
+
+func (r *orderRepository) AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string, status models.RefundStatus) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING`, eventID, eventType)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if n == 0 {
+		// Already delivered: a no-op, whether that earlier delivery is still
+		// being processed or finished already.
+		return true, tx.Commit()
+	}
+
+	// No matching row is not an error: refundID may not (yet, or ever) be
+	// tracked on an Order Item. The update only fires from 'accepted' so
+	// that Razorpay redelivering refund.processed and refund.failed out of
+	// order for the same refund cannot flip an already-settled or
+	// already-failed outcome back the other way.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE order_items SET refund_status = $2 WHERE refund_id = $1 AND refund_status = 'accepted'`,
+		refundID, strings.ToLower(string(status))); err != nil {
+		return false, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 // findOrderByCheckoutSession returns the Order fulfilled from sessionID, or
