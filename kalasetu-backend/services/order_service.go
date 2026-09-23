@@ -31,6 +31,12 @@ type OrderService interface {
 	// failure modes; a failed signature verification returns
 	// ErrPaymentConfirmationInvalid.
 	ConfirmCheckoutSessionPayment(ctx context.Context, buyerID int, confirmation payments.ConfirmationRequest) (*models.Order, error)
+	// FulfilFromWebhook is the webhook backstop's entry into the same
+	// fulfilment ConfirmCheckoutSessionPayment runs, for a payment-captured
+	// or order-paid notification whose signature the caller has already
+	// verified. See repos.OrderRepository.FulfilCheckoutSessionFromWebhook
+	// for the delivered/idempotency contract.
+	FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (order *models.Order, delivered bool, err error)
 	// MyOrders returns the buyer's Orders, newest first.
 	MyOrders(ctx context.Context, buyerID int) ([]models.Order, error)
 	// SellerOrderItems returns the Order Items for the seller's Listings, newest
@@ -81,6 +87,10 @@ func (s *orderService) ConfirmCheckoutSessionPayment(ctx context.Context, buyerI
 		return nil, fmt.Errorf("%w: %w", ErrPaymentConfirmationInvalid, err)
 	}
 	return s.repo.ConfirmCheckoutSession(ctx, buyerID, confirmation.GatewayOrderID, confirmation.PaymentID)
+}
+
+func (s *orderService) FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (*models.Order, bool, error) {
+	return s.repo.FulfilCheckoutSessionFromWebhook(ctx, eventID, eventType, gatewayOrderID, paymentID)
 }
 
 func (s *orderService) MyOrders(ctx context.Context, buyerID int) ([]models.Order, error) {

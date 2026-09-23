@@ -156,6 +156,9 @@ func New(db *sql.DB, paymentProvider payments.PaymentProvider, gatewayOpts Gatew
 	apiV1 := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(apiV1, authHandler)
 
+	razorpayWebhookHandler := handlers.NewRazorpayWebhookHandler(gatewayOpts.Gateway, orderService)
+	routes.RegisterWebhookRoutes(apiV1, razorpayWebhookHandler)
+
 	resolver := graph.NewResolver(eventService, applicationService, opportunityService, postService, commentService, likeService, userService, profileService, listingService, cartService, orderService, checkoutSessionService)
 	srv := gqlSetup(resolver)
 

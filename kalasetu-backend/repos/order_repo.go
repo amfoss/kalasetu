@@ -67,6 +67,20 @@ type OrderRepository interface {
 	// ErrCheckoutSessionNotConfirmable if it is neither open nor already
 	// consumed (e.g. cancelled or expired).
 	ConfirmCheckoutSession(ctx context.Context, buyerID int, gatewayOrderID, paymentID string) (*models.Order, error)
+	// FulfilCheckoutSessionFromWebhook is the webhook backstop's entry into
+	// the same fulfilment ConfirmCheckoutSession runs: it trusts the caller
+	// to have already verified the notification's signature, so it takes no
+	// buyerID to check. eventID is recorded as delivered in the very
+	// transaction that does the fulfilment, so the two either happen
+	// together or not at all: a failed attempt leaves no delivery recorded,
+	// ready for Razorpay's retry to try again, and a redelivered eventID is
+	// recognised before anything else runs. delivered reports whether
+	// eventID had already been recorded by an earlier call, in which case
+	// order is nil and nothing else was touched. A fresh delivery still goes
+	// through ConfirmCheckoutSession's own idempotency (keyed on
+	// gatewayOrderID), so a webhook racing a Buyer's own confirmation of the
+	// same session also produces exactly one Order.
+	FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (order *models.Order, delivered bool, err error)
 	// FindByBuyer returns the buyer's orders with their items, newest first, never nil.
 	FindByBuyer(ctx context.Context, buyerID int) ([]models.Order, error)
 	// FindItemsBySeller returns the Order Items for the seller's Listings, newest
@@ -108,11 +122,64 @@ func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID in
 	}
 	defer tx.Rollback()
 
+	order, err := r.fulfilCheckoutSessionTx(ctx, tx, gatewayOrderID, paymentID, &buyerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (r *orderRepository) FulfilCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (*models.Order, bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING`, eventID, eventType)
+	if err != nil {
+		return nil, false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, false, err
+	}
+	if n == 0 {
+		// Already delivered: a no-op, whether that earlier delivery is still
+		// being processed or finished already.
+		return nil, true, tx.Commit()
+	}
+
+	order, err := r.fulfilCheckoutSessionTx(ctx, tx, gatewayOrderID, paymentID, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, err
+	}
+	return order, false, nil
+}
+
+// fulfilCheckoutSessionTx is the fulfilment routine both ConfirmCheckoutSession
+// and FulfilCheckoutSessionFromWebhook run: the session matching
+// gatewayOrderID is locked, its snapshot becomes the Order and its Items
+// (each paid), the session is marked consumed, and the Buyer's Cart is
+// emptied. It is idempotent keyed on gatewayOrderID: if the session is
+// already consumed, it returns the Order that resulted the first time rather
+// than creating a second one. buyerID, when non-nil, must match the
+// session's Buyer or ErrCheckoutSessionForbidden is returned; a nil buyerID
+// trusts the caller (the webhook path, authenticated by the gateway's
+// signature instead of a Buyer's session).
+func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.Tx, gatewayOrderID, paymentID string, buyerID *int) (*models.Order, error) {
 	var sessionID, sessBuyerID int
 	var status string
 	ship := models.ShippingAddress{}
 	var total float64
-	err = tx.QueryRowContext(ctx, `
+	err := tx.QueryRowContext(ctx, `
 		SELECT id, buyer_id, status, ship_name, ship_phone, ship_line1, ship_line2,
 			ship_city, ship_state, ship_postal_code, ship_country, total::float8
 		FROM checkout_sessions WHERE gateway_order_id = $1 FOR UPDATE`, gatewayOrderID).Scan(
@@ -121,11 +188,11 @@ func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID in
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrCheckoutSessionNotFound
 	}
-	total = roundPrice(total)
 	if err != nil {
 		return nil, err
 	}
-	if sessBuyerID != buyerID {
+	total = roundPrice(total)
+	if buyerID != nil && sessBuyerID != *buyerID {
 		return nil, ErrCheckoutSessionForbidden
 	}
 
@@ -139,7 +206,7 @@ func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID in
 		if order == nil {
 			return nil, ErrCheckoutSessionNotConfirmable
 		}
-		return order, tx.Commit()
+		return order, nil
 	}
 	if status != "open" {
 		return nil, ErrCheckoutSessionNotConfirmable
@@ -168,7 +235,7 @@ func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID in
 	}
 	itemRows.Close()
 
-	order := &models.Order{BuyerID: buyerID, Shipping: ship, Total: total}
+	order := &models.Order{BuyerID: sessBuyerID, Shipping: ship, Total: total}
 	// charge_id predates the gateway seam; it now holds paymentID, the
 	// gateway's payment identifier, rather than an old PaymentProvider charge id.
 	if err := tx.QueryRowContext(ctx, `
@@ -176,7 +243,7 @@ func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID in
 			ship_city, ship_state, ship_postal_code, ship_country, total, checkout_session_id, charge_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, created_at`,
-		buyerID, ship.Name, ship.Phone, ship.Line1, ship.Line2, ship.City, ship.State,
+		sessBuyerID, ship.Name, ship.Phone, ship.Line1, ship.Line2, ship.City, ship.State,
 		ship.PostalCode, ship.Country, total, sessionID, paymentID).Scan(&order.ID, &order.CreatedAt); err != nil {
 		return nil, err
 	}
@@ -195,13 +262,10 @@ func (r *orderRepository) ConfirmCheckoutSession(ctx context.Context, buyerID in
 		`UPDATE checkout_sessions SET status = 'consumed' WHERE id = $1`, sessionID); err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM cart_items WHERE user_id = $1`, buyerID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM cart_items WHERE user_id = $1`, sessBuyerID); err != nil {
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	return order, nil
 }
 
