@@ -111,6 +111,11 @@ type Mutation {
   # the gateway order id: confirming the same payment twice returns the same
   # Order rather than creating a second one.
   confirmCheckoutSessionPayment(input: ConfirmCheckoutSessionPaymentInput!): Order!
+  # Cancels the caller's open Checkout Session, releasing its reserved Stock
+  # immediately (even if a Listing has since been Archived) and letting the
+  # caller start a new Checkout Session right away. Fails if the caller has
+  # no open Checkout Session.
+  cancelCheckoutSession: Boolean!
   # Seller-only for that item. Forward-only, one step at a time: PAID to
   # SHIPPED to DELIVERED; skipping, repeating or reversing is rejected.
   updateOrderItemStatus(id: ID!, status: FulfilmentStatus!): SellerOrderItem!

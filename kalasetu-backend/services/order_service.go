@@ -52,6 +52,12 @@ type OrderService interface {
 	// delivered/idempotency contract and why an unmatched refundID is not an
 	// error.
 	AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string) (delivered bool, err error)
+	// ReleaseFromWebhook is a payment-failed notification's entry: it
+	// releases the Checkout Session matching gatewayOrderID immediately
+	// rather than waiting for it to expire. See
+	// repos.OrderRepository.ReleaseCheckoutSessionFromWebhook for the
+	// delivered/idempotency contract.
+	ReleaseFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID string) (delivered bool, err error)
 	// MyOrders returns the buyer's Orders, newest first.
 	MyOrders(ctx context.Context, buyerID int) ([]models.Order, error)
 	// SellerOrderItems returns the Order Items for the seller's Listings, newest
@@ -106,6 +112,10 @@ func (s *orderService) ConfirmCheckoutSessionPayment(ctx context.Context, buyerI
 
 func (s *orderService) FulfilFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID, paymentID string) (*models.Order, bool, error) {
 	return s.repo.FulfilCheckoutSessionFromWebhook(ctx, eventID, eventType, gatewayOrderID, paymentID)
+}
+
+func (s *orderService) ReleaseFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID string) (bool, error) {
+	return s.repo.ReleaseCheckoutSessionFromWebhook(ctx, eventID, eventType, gatewayOrderID)
 }
 
 func (s *orderService) AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string) (bool, error) {

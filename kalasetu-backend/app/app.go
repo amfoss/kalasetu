@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"kalasetu/config"
 	"kalasetu/graph"
@@ -47,6 +48,10 @@ type GatewayOptions struct {
 
 const defaultPort = "8080"
 
+// checkoutSessionSweepInterval is how often the production application
+// sweeps for expired Checkout Sessions.
+const checkoutSessionSweepInterval = time.Minute
+
 // NewApp is the production wiring: it reads configuration from the environment,
 // connects to and migrates the database, and builds the App around it.
 func NewApp() *App {
@@ -87,6 +92,12 @@ func NewApp() *App {
 		ReservationWindow: razorpayCfg.ReservationWindow,
 	})
 	app.Port = port
+
+	if db != nil {
+		sweeper := services.NewCheckoutSessionSweeper(repos.NewCheckoutSessionRepository(db), checkoutSessionSweepInterval)
+		go sweeper.Start(context.Background())
+	}
+
 	return app
 }
 

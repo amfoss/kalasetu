@@ -132,6 +132,7 @@ type ComplexityRoot struct {
 		AddComment                    func(childComplexity int, input model.CreateCommentInput) int
 		AddToCart                     func(childComplexity int, listingID string, quantity *int32) int
 		ArchiveListing                func(childComplexity int, id string) int
+		CancelCheckoutSession         func(childComplexity int) int
 		CancelOrderItem               func(childComplexity int, id string) int
 		ConfirmCheckoutSessionPayment func(childComplexity int, input model.ConfirmCheckoutSessionPaymentInput) int
 		CreateCheckoutSession         func(childComplexity int, shippingAddress model.ShippingAddressInput) int
@@ -317,6 +318,7 @@ type MutationResolver interface {
 	RemoveFromCart(ctx context.Context, listingID string) (*model.Cart, error)
 	CreateCheckoutSession(ctx context.Context, shippingAddress model.ShippingAddressInput) (*model.CheckoutSession, error)
 	ConfirmCheckoutSessionPayment(ctx context.Context, input model.ConfirmCheckoutSessionPaymentInput) (*model.Order, error)
+	CancelCheckoutSession(ctx context.Context) (bool, error)
 	UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error)
 	CancelOrderItem(ctx context.Context, id string) (*model.SellerOrderItem, error)
 	CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error)
@@ -767,6 +769,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ArchiveListing(childComplexity, args["id"].(string)), true
+	case "Mutation.cancelCheckoutSession":
+		if e.ComplexityRoot.Mutation.CancelCheckoutSession == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.CancelCheckoutSession(childComplexity), true
 	case "Mutation.cancelOrderItem":
 		if e.ComplexityRoot.Mutation.CancelOrderItem == nil {
 			break
@@ -5135,6 +5143,35 @@ func (ec *executionContext) fieldContext_Mutation_confirmCheckoutSessionPayment(
 	if fc.Args, err = ec.field_Mutation_confirmCheckoutSessionPayment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_cancelCheckoutSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_cancelCheckoutSession,
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().CancelCheckoutSession(ctx)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_cancelCheckoutSession(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -12769,6 +12806,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "confirmCheckoutSessionPayment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_confirmCheckoutSessionPayment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cancelCheckoutSession":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_cancelCheckoutSession(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

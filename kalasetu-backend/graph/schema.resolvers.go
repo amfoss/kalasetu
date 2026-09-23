@@ -415,6 +415,18 @@ func (r *mutationResolver) ConfirmCheckoutSessionPayment(ctx context.Context, in
 	return toGraphOrder(order), nil
 }
 
+// CancelCheckoutSession is the resolver for the cancelCheckoutSession field.
+func (r *mutationResolver) CancelCheckoutSession(ctx context.Context) (bool, error) {
+	userID, err := requireUser(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err := r.checkoutSessionService.Cancel(ctx, userID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // UpdateOrderItemStatus is the resolver for the updateOrderItemStatus field.
 func (r *mutationResolver) UpdateOrderItemStatus(ctx context.Context, id string, status model.FulfilmentStatus) (*model.SellerOrderItem, error) {
 	userID, err := requireUser(ctx)

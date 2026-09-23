@@ -31,6 +31,12 @@ var refundEvents = map[string]bool{
 	"refund.failed":    true,
 }
 
+// releasingEvents are the webhook event types that release a Checkout
+// Session's Stock immediately rather than waiting for it to expire.
+var releasingEvents = map[string]bool{
+	"payment.failed": true,
+}
+
 // razorpayWebhookPayload is the shape of the "payment" entity Razorpay
 // includes in both a payment.captured and an order.paid webhook's payload.
 type razorpayWebhookPayload struct {
@@ -87,6 +93,11 @@ func (h *RazorpayWebhookHandler) Handle(c *gin.Context) {
 		return
 	}
 
+	if releasingEvents[event.Event] {
+		h.handleReleasingEvent(c, rawBody, event)
+		return
+	}
+
 	if !fulfillingEvents[event.Event] {
 		c.JSON(http.StatusOK, gin.H{"status": "ignored"})
 		return
@@ -125,6 +136,37 @@ func (h *RazorpayWebhookHandler) Handle(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fulfil checkout session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// handleReleasingEvent releases the Checkout Session matching the payload's
+// gateway order id immediately, for a payment-failed notification, rather
+// than waiting for the session to expire.
+func (h *RazorpayWebhookHandler) handleReleasingEvent(c *gin.Context, rawBody []byte, event payments.WebhookEvent) {
+	var payload razorpayWebhookPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "malformed webhook payload"})
+		return
+	}
+	if payload.Payment.Entity.OrderID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "webhook payload is missing payment identifiers"})
+		return
+	}
+
+	sum := sha256.Sum256(rawBody)
+	eventID := hex.EncodeToString(sum[:])
+
+	if _, err := h.orders.ReleaseFromWebhook(c.Request.Context(), eventID, event.Event, payload.Payment.Entity.OrderID); err != nil {
+		if errors.Is(err, repos.ErrCheckoutSessionNotFound) {
+			// No session matches this gateway order id yet. This can be
+			// transient, so answer with an error and let Razorpay retry.
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "no checkout session for this gateway order id"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not release checkout session"})
 		return
 	}
 

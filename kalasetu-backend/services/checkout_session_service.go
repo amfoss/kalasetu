@@ -16,6 +16,10 @@ type CheckoutSessionService interface {
 	// Buyer's browser needs to open the payment screen. See
 	// repos.CheckoutSessionRepository.Create for the failure modes.
 	Create(ctx context.Context, buyerID int, ship models.ShippingAddress) (*models.CheckoutSession, error)
+	// Cancel cancels buyerID's open Checkout Session, releasing its reserved
+	// Stock immediately and letting a new Checkout Session be created right
+	// away. See repos.CheckoutSessionRepository.Cancel for the failure mode.
+	Cancel(ctx context.Context, buyerID int) error
 }
 
 type checkoutSessionService struct {
@@ -57,4 +61,8 @@ func (s *checkoutSessionService) Create(ctx context.Context, buyerID int, ship m
 	}
 	session.KeyID = s.keyID
 	return session, nil
+}
+
+func (s *checkoutSessionService) Cancel(ctx context.Context, buyerID int) error {
+	return s.repo.Cancel(ctx, buyerID)
 }

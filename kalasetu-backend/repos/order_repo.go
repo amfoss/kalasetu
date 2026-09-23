@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"kalasetu/models"
 )
@@ -94,6 +95,17 @@ type OrderRepository interface {
 	// fulfilment status is never touched, since cancellation and refund
 	// settlement are separate facts.
 	AdvanceRefundFromWebhook(ctx context.Context, eventID, eventType, refundID string, status models.RefundStatus) (delivered bool, err error)
+	// ReleaseCheckoutSessionFromWebhook is a payment-failed notification's
+	// entry: eventID is recorded as delivered in the same transaction that
+	// releases the Checkout Session matching gatewayOrderID, so the two
+	// either happen together or not at all. delivered reports whether
+	// eventID had already been recorded by an earlier call, in which case
+	// nothing else was touched. The session is only released while it is
+	// still open, so a payment-failed notification racing a successful
+	// confirmation (or a redelivery after the session was already released)
+	// is a no-op rather than an error. It returns ErrCheckoutSessionNotFound
+	// if no session matches gatewayOrderID.
+	ReleaseCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID string) (delivered bool, err error)
 	// FindByBuyer returns the buyer's orders with their items, newest first, never nil.
 	FindByBuyer(ctx context.Context, buyerID int) ([]models.Order, error)
 	// FindItemsBySeller returns the Order Items for the seller's Listings, newest
@@ -190,14 +202,15 @@ func (r *orderRepository) FulfilCheckoutSessionFromWebhook(ctx context.Context, 
 func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.Tx, gatewayOrderID, paymentID string, buyerID *int) (*models.Order, error) {
 	var sessionID, sessBuyerID int
 	var status string
+	var expiresAt time.Time
 	ship := models.ShippingAddress{}
 	var total float64
 	err := tx.QueryRowContext(ctx, `
 		SELECT id, buyer_id, status, ship_name, ship_phone, ship_line1, ship_line2,
-			ship_city, ship_state, ship_postal_code, ship_country, total::float8
+			ship_city, ship_state, ship_postal_code, ship_country, total::float8, expires_at
 		FROM checkout_sessions WHERE gateway_order_id = $1 FOR UPDATE`, gatewayOrderID).Scan(
 		&sessionID, &sessBuyerID, &status, &ship.Name, &ship.Phone, &ship.Line1, &ship.Line2,
-		&ship.City, &ship.State, &ship.PostalCode, &ship.Country, &total)
+		&ship.City, &ship.State, &ship.PostalCode, &ship.Country, &total, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrCheckoutSessionNotFound
 	}
@@ -222,6 +235,19 @@ func (r *orderRepository) fulfilCheckoutSessionTx(ctx context.Context, tx *sql.T
 		return order, nil
 	}
 	if status != "open" {
+		return nil, ErrCheckoutSessionNotConfirmable
+	}
+	if !expiresAt.After(time.Now()) {
+		// Expired but not yet swept: release it now rather than let a late
+		// confirmation succeed against a session that is no longer live. The
+		// release is committed here, unlike the rest of this routine, since
+		// the caller's transaction otherwise rolls back on the error return.
+		if err := releaseSessionTx(ctx, tx, sessionID, "expired"); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
 		return nil, ErrCheckoutSessionNotConfirmable
 	}
 
@@ -313,6 +339,51 @@ func (r *orderRepository) AdvanceRefundFromWebhook(ctx context.Context, eventID,
 		`UPDATE order_items SET refund_status = $2 WHERE refund_id = $1 AND refund_status = 'accepted'`,
 		refundID, strings.ToLower(string(status))); err != nil {
 		return false, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func (r *orderRepository) ReleaseCheckoutSessionFromWebhook(ctx context.Context, eventID, eventType, gatewayOrderID string) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO webhook_events (event_id, event_type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING`, eventID, eventType)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if n == 0 {
+		// Already delivered: a no-op, whether that earlier delivery is still
+		// being processed or finished already.
+		return true, tx.Commit()
+	}
+
+	var sessionID int
+	var status string
+	err = tx.QueryRowContext(ctx,
+		`SELECT id, status FROM checkout_sessions WHERE gateway_order_id = $1 FOR UPDATE`, gatewayOrderID).Scan(&sessionID, &status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, ErrCheckoutSessionNotFound
+	}
+	if err != nil {
+		return false, err
+	}
+
+	if status == "open" {
+		if err := releaseSessionTx(ctx, tx, sessionID, "cancelled"); err != nil {
+			return false, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
