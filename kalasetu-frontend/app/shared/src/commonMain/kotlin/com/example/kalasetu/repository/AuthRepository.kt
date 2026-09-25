@@ -83,24 +83,13 @@ class AuthRepository {
                 )
             }
 
-            // Store authentication information
-            AuthStore.accessToken = accessToken
-            AuthStore.refreshToken = refreshToken
-
-            AuthStore.userId =
-                user?.get("id")
-                    ?.jsonPrimitive
-                    ?.intOrNull
-
-            AuthStore.userEmail =
-                user?.get("email")
-                    ?.jsonPrimitive
-                    ?.content
-
-            AuthStore.userName =
-                user?.get("name")
-                    ?.jsonPrimitive
-                    ?.content
+            AuthStore.saveSession(
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                userId = user?.get("id")?.jsonPrimitive?.intOrNull,
+                userEmail = user?.get("email")?.jsonPrimitive?.content,
+                userName = user?.get("name")?.jsonPrimitive?.content
+            )
 
             println("========== LOGIN SUCCESS ==========")
             println("userId = ${AuthStore.userId}")
