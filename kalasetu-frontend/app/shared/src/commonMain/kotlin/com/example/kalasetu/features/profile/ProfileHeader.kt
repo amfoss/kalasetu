@@ -26,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -93,15 +94,15 @@ fun ProfileHeader(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(CardWhite)
-                    .border(1.dp, DividerGray, CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                     .clickable(onClick = onShare),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Share,
                     contentDescription = "Share profile",
-                    tint = TextSecondary,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -141,7 +142,7 @@ fun ProfileAvatar(
         modifier = Modifier
             .size(80.dp)
             .clip(CircleShape)
-            .border(3.dp, CardWhite, CircleShape)
+            .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape)
             .background(LightPurple),
         contentAlignment = Alignment.Center,
     ) {
@@ -183,7 +184,7 @@ fun ProfileInfo(profile: Profile) {
                 text = profile.name,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
             if (profile.isVerified) {
@@ -204,7 +205,7 @@ fun ProfileInfo(profile: Profile) {
             Text(
                 text = "@${profile.username}",
                 fontSize = 14.sp,
-                color = TextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -215,7 +216,7 @@ fun ProfileInfo(profile: Profile) {
                 Icon(
                     imageVector = Icons.Default.LocationOn,
                     contentDescription = "Location",
-                    tint = TextSecondary,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(14.dp),
                 )
 
@@ -224,7 +225,7 @@ fun ProfileInfo(profile: Profile) {
                 Text(
                     text = profile.location,
                     fontSize = 13.sp,
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -235,7 +236,7 @@ fun ProfileInfo(profile: Profile) {
             Text(
                 text = profile.bio,
                 fontSize = 14.sp,
-                color = TextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
 
@@ -272,13 +273,13 @@ fun InlineStat(
             text = value,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary,
+            color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
             text = label,
             fontSize = 12.sp,
-            color = TextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

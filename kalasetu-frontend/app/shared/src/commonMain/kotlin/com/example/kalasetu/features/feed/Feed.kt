@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import com.example.kalasetu.features.profile.*
+import com.example.kalasetu.features.profile.toInitials
+import com.example.kalasetu.features.settings.SavedStore
 import com.example.kalasetu.theme.KalasetuTheme
 import com.example.kalasetu.theme.SelectedPurple
 import com.example.kalasetu.theme.SubtitleGray
@@ -111,6 +113,8 @@ fun FeedScreen(
     val posts by viewModel.posts.collectAsState()
     val commentsList by viewModel.comments.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val savedPosts by SavedStore.saved.collectAsState()
+    val savedIds = remember(savedPosts) { savedPosts.map { it.id }.toSet() }
 
     LaunchedEffect(Unit) {
         viewModel.loadPosts()
@@ -159,6 +163,8 @@ fun FeedScreen(
             when (selectedTab) {
                 0 -> FeedContent(
                     posts = posts,
+                    savedIds = savedIds,
+                    onSaveToggle = { post -> SavedStore.toggle(post) },
                     onLikeClick = { postId -> viewModel.toggleLike(postId) },
                     onDeleteClick = { postId -> viewModel.deletePost(postId) },
                     onCommentClick = { postId ->
@@ -195,6 +201,8 @@ fun FeedScreen(
 @Composable
 internal fun FeedContent(
     posts: List<ArtistPost>,
+    savedIds: Set<Int>,
+    onSaveToggle: (ArtistPost) -> Unit,
     onLikeClick: (Int) -> Unit,
     onDeleteClick: (Int) -> Unit,
     onCommentClick: (Int) -> Unit
@@ -206,6 +214,8 @@ internal fun FeedContent(
         items(posts) { post ->
             PostCard(
                 post = post,
+                saved = post.id in savedIds,
+                onSaveClick = { onSaveToggle(post) },
                 onLikeClick = { onLikeClick(post.id) },
                 onDeleteClick = { onDeleteClick(post.id) },
                 onCommentClick = { onCommentClick(post.id) }
@@ -330,8 +340,10 @@ internal fun KalaTabRow(
 }
 
 @Composable
-private fun PostCard(
+internal fun PostCard(
     post: ArtistPost,
+    saved: Boolean,
+    onSaveClick: () -> Unit,
     onLikeClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onCommentClick: () -> Unit
@@ -434,6 +446,14 @@ private fun PostCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onLikeClick) {
+                    Icon(
+                        imageVector = if (post.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Like",
+                        tint = if (post.isLiked) Color.Red else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(text = "${post.likes}", fontSize = 13.sp)
                 Icon(
                     imageVector = Icons.Default.Favorite,
                     contentDescription = null,
@@ -459,6 +479,14 @@ private fun PostCard(
 
             Spacer(Modifier.height(8.dp))
 
+                IconButton(onClick = onSaveClick) {
+                    Icon(
+                        imageVector = if (saved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = "Save",
+                        tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
             HorizontalDivider(
                 color = DividerGray,
                 thickness = 1.dp
@@ -506,7 +534,7 @@ private fun PostCard(
                 )
             }
         }
-    }
+
 
     if (fullScreenImageIndex != null) {
         FullScreenImageViewer(
@@ -531,7 +559,7 @@ private fun ImageCarousel(
             .background(Purple50.copy(alpha = 0.5f))
     ) {
         val maxWidthPx = constraints.maxWidth
-        
+
         val heightModifier = if (maxHeightPx > 0) {
             Modifier.height(with(density) { maxHeightPx.toDp() })
         } else {
@@ -612,7 +640,7 @@ fun FullScreenImageViewer(
                 .background(Color.Black)
         ) {
             val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { images.size })
-            
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
@@ -634,7 +662,7 @@ fun FullScreenImageViewer(
             ) {
                 Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
             }
-            
+
             if (images.size > 1) {
                 Text(
                     text = "${pagerState.currentPage + 1} / ${images.size}",

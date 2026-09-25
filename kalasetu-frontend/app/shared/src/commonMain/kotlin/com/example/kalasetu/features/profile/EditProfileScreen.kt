@@ -138,7 +138,7 @@ fun EditProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SurfaceWhite)
+            .background(MaterialTheme.colorScheme.surface)
             .imePadding()
     ) {
         // Header
@@ -223,7 +223,7 @@ fun EditProfileScreen(
         ModalBottomSheet(
             onDismissRequest = { showImageSourceOption = false },
             dragHandle = { BottomSheetDefaults.DragHandle() },
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier = Modifier
@@ -336,7 +336,7 @@ private fun EditProfileHeader(
                 modifier = Modifier
                     .size(90.dp)
                     .clip(CircleShape)
-                    .border(3.dp, CardWhite, CircleShape)
+                    .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape)
                     .background(LightPurple),
                 contentAlignment = Alignment.Center
             ) {
@@ -364,7 +364,7 @@ private fun EditProfileHeader(
                     .size(28.dp)
                     .clip(CircleShape)
                     .background(BrandPurple)
-                    .border(2.dp, CardWhite, CircleShape)
+                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
                     .clickable(onClick = onCameraClick),
                 contentAlignment = Alignment.Center
             ) {
@@ -405,13 +405,13 @@ private fun EditField(
             text       = label,
             fontSize   = 13.sp,
             fontWeight = FontWeight.Medium,
-            color      = TextPrimary
+            color      = MaterialTheme.colorScheme.onSurface
         )
         OutlinedTextField(
             value         = value,
             onValueChange = onValueChange,
             placeholder   = {
-                Text(text = placeholder, color = TextSecondary, fontSize = 14.sp)
+                Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
             },
             leadingIcon   = {
                 Icon(
@@ -422,7 +422,7 @@ private fun EditField(
                 )
             },
             prefix = prefix?.let { p ->
-                { Text(text = p, color = TextSecondary, fontSize = 14.sp) }
+                { Text(text = p, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp) }
             },
             isError    = error != null,
             singleLine = true,
@@ -430,11 +430,11 @@ private fun EditField(
             modifier   = Modifier.fillMaxWidth(),
             colors     = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor      = BrandPurple,
-                unfocusedBorderColor    = DividerGray,
+                unfocusedBorderColor    = MaterialTheme.colorScheme.outlineVariant,
                 errorBorderColor        = ErrorRed,
-                focusedContainerColor   = CardWhite,
-                unfocusedContainerColor = CardWhite,
-                errorContainerColor     = CardWhite
+                focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                errorContainerColor     = MaterialTheme.colorScheme.surfaceVariant
             )
         )
         error?.let { err ->
@@ -454,7 +454,7 @@ private fun BioField(
             text       = "Bio",
             fontSize   = 13.sp,
             fontWeight = FontWeight.Medium,
-            color      = TextPrimary
+            color      = MaterialTheme.colorScheme.onSurface
         )
         OutlinedTextField(
             value         = value,
@@ -462,7 +462,7 @@ private fun BioField(
             placeholder   = {
                 Text(
                     text     = "Tell the world about your art and what inspires you…",
-                    color    = TextSecondary,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp
                 )
             },
@@ -472,15 +472,15 @@ private fun BioField(
             modifier = Modifier.fillMaxWidth(),
             colors   = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor      = BrandPurple,
-                unfocusedBorderColor    = DividerGray,
-                focusedContainerColor   = CardWhite,
-                unfocusedContainerColor = CardWhite
+                unfocusedBorderColor    = MaterialTheme.colorScheme.outlineVariant,
+                focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
         Text(
             text     = "${value.length} / $maxChars",
             fontSize = 11.sp,
-            color    = if (value.length >= maxChars) ErrorRed else TextSecondary,
+            color    = if (value.length >= maxChars) ErrorRed else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.End)
         )
     }

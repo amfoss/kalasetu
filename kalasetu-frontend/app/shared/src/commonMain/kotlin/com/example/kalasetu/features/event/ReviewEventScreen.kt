@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import kotlinx.datetime.LocalDate
 
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReviewEventScreen(
@@ -38,7 +37,7 @@ fun ReviewEventScreen(
     onEdit: () -> Unit,
     onPublish: () -> Unit,
 ) {
-    Scaffold(containerColor = Color.White) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -56,7 +55,7 @@ fun ReviewEventScreen(
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.Black,
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
@@ -87,7 +86,7 @@ fun ReviewEventScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, BorderGray),
                 elevation = CardDefaults.cardElevation(2.dp),
             ) {

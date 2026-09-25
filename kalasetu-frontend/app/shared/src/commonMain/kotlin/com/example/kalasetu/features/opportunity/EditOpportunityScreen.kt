@@ -23,9 +23,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 private val PurplePrimary = Color(0xFF7466F1)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
-private val BorderGray = Color(0xFFE0E0E0)
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderGray @Composable get() = MaterialTheme.colorScheme.outlineVariant
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -58,11 +58,11 @@ fun EditOpportunityScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            Surface(shadowElevation = 8.dp, color = Color.White) {
+            Surface(shadowElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -112,7 +112,7 @@ fun EditOpportunityScreen(
                 }
             }
         },
-        containerColor = Color(0xFFF8F9FA)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { padding ->
         Column(
             modifier = Modifier
@@ -166,7 +166,7 @@ fun EditOpportunityScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF8F9FA))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(12.dp)
                     ) {
                         Row(
@@ -182,7 +182,7 @@ fun EditOpportunityScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 4.dp)
                             ) {

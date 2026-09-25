@@ -2,6 +2,7 @@ package com.example.kalasetu.repository
 
 import com.example.kalasetu.features.auth.AuthStore
 import io.ktor.client.HttpClient
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -111,6 +112,53 @@ class AuthRepository {
         } catch (e: Exception) {
 
             println("========== LOGIN ERROR ==========")
+            println(e.message)
+            e.printStackTrace()
+
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changePassword(
+        oldPassword: String,
+        newPassword: String
+    ): Result<Unit> {
+
+        return try {
+
+            val token = AuthStore.accessToken
+                ?: return Result.failure(Exception("Not logged in"))
+
+            val response = client.post("$baseUrl/api/v1/auth/change-password") {
+
+                contentType(ContentType.Application.Json)
+
+                header("Authorization", "Bearer $token")
+
+                setBody(
+                    """
+                    {
+                        "old_password": "${oldPassword.replace("\"", "\\\"")}",
+                        "new_password": "${newPassword.replace("\"", "\\\"")}"
+                    }
+                    """.trimIndent()
+                )
+            }
+
+            val responseText = response.bodyAsText()
+
+            if (response.status.value !in 200..299) {
+
+                return Result.failure(
+                    Exception(responseText.ifBlank { "Password change failed: ${response.status}" })
+                )
+            }
+
+            Result.success(Unit)
+
+        } catch (e: Exception) {
+
+            println("========== CHANGE PASSWORD ERROR ==========")
             println(e.message)
             e.printStackTrace()
 

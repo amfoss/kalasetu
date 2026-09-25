@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.datetime.*
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimelineAndLocationScreen(
@@ -55,7 +54,7 @@ fun TimelineAndLocationScreen(
                 )
             }
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -73,7 +72,7 @@ fun TimelineAndLocationScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.Black
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -144,8 +143,8 @@ fun TimelineAndLocationScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = BorderGray,
                     focusedBorderColor = PurplePrimary,
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 singleLine = true
             )
@@ -173,7 +172,7 @@ fun CalendarCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

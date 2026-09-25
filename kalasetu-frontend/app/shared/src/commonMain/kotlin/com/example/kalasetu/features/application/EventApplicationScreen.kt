@@ -37,10 +37,10 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
 
 private val PurplePrimary = Color(0xFF7466F1)
-private val LightPurpleBg = Color(0xFFF4F1FF)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
-private val BorderGray = Color(0xFFE0E0E0)
+private val LightPurpleBg @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderGray @Composable get() = MaterialTheme.colorScheme.outlineVariant
 private val SuccessGreen = Color(0xFF2E7D32)
 private val SuccessGreenBg = Color(0xFFE5F7E5)
 
@@ -96,7 +96,7 @@ fun EventApplicationsScreen(
         eventApps.count { it.status == ApplicationStatus.REJECTED },
     )
 
-    Scaffold(containerColor = Color.White) { padding ->
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -113,7 +113,7 @@ fun EventApplicationsScreen(
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.Black,
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
 
@@ -200,7 +200,7 @@ fun EventApplicationsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF5F5F5))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(4.dp),
             ) {
                 MainTabItem(
@@ -252,7 +252,7 @@ private fun MainTabItem(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) PurplePrimary else Color.Transparent)
+            .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
@@ -261,7 +261,7 @@ private fun MainTabItem(
             text = label,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected) Color.White else TextGray
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -309,7 +309,7 @@ private fun ApplicationsTabContent(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) PurplePrimary else Color(0xFFF5F5F5))
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { onTabSelected(i) }
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center,
@@ -318,7 +318,7 @@ private fun ApplicationsTabContent(
                         text = "$label (${appCounts[i]})",
                         fontSize = 10.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else TextGray,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
                 }
@@ -437,7 +437,7 @@ private fun OpportunityCard(opp: Opportunity, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, BorderGray)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -479,7 +479,7 @@ private fun OpportunityCard(opp: Opportunity, onClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF8F9FA))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
@@ -589,7 +589,7 @@ private fun InfoPill(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -640,7 +640,7 @@ private fun OrganizerAppRow(app: Application, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
                 if (app.applicantAvatarBytes != null) {

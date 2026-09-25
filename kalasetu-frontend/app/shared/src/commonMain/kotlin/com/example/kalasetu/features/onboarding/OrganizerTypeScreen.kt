@@ -82,7 +82,7 @@ fun OrganizerTypeScreen(
                         containerColor = if (selectedType == type)
                             SelectedPurple.copy(alpha = 0.08f)
                         else Color.Transparent,
-                        contentColor = Color(0xFF1C1B1F),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()

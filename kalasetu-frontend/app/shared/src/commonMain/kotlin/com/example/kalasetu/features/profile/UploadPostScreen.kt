@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +39,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -55,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -96,7 +100,7 @@ fun UploadPostScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SurfaceWhite
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -111,13 +115,13 @@ fun UploadPostScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BrandPurple,
-                    disabledContainerColor = DividerGray
+                    disabledContainerColor = MaterialTheme.colorScheme.outlineVariant
                 )
             ) {
                 Text("Done", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = SurfaceWhite
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Column(
             modifier = Modifier
@@ -133,7 +137,7 @@ fun UploadPostScreen(
                     "Photos",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
                 if (images.isEmpty()) {
@@ -142,7 +146,7 @@ fun UploadPostScreen(
                             .fillMaxWidth()
                             .height(200.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Purple50)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .dashedBorder(color = BrandPurple, strokeWidth = 1.5.dp, cornerRadius = 12.dp)
                             .clickable { imagePicker.launch() },
                         contentAlignment = Alignment.Center
@@ -196,7 +200,7 @@ fun UploadPostScreen(
                             modifier = Modifier
                                 .size(100.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Purple50)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                                 .clickable { imagePicker.launch() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -212,21 +216,21 @@ fun UploadPostScreen(
                     "Description",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    placeholder = { Text("Write something about your post...", color = TextSecondary) },
+                    placeholder = { Text("Write something about your post...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(150.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BrandPurple,
-                        unfocusedBorderColor = DividerGray,
-                        unfocusedContainerColor = CardWhite,
-                        focusedContainerColor = CardWhite
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
             }
@@ -260,11 +264,11 @@ fun PostPreviewScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SurfaceWhite
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
-        containerColor = SurfaceWhite
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         Column(
             modifier = Modifier
@@ -301,7 +305,7 @@ private fun PostPreviewCard(
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, DividerGray.copy(alpha = 0.4f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
         Column {
             Row(
@@ -310,6 +314,31 @@ private fun PostPreviewCard(
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val avatarModel = userAvatarBytes ?: userAvatarUrl
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (avatarModel != null) {
+                        AsyncImage(
+                            model = avatarModel,
+                            contentDescription = userName,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        val initials = userName.split(" ").filter { it.isNotEmpty() }.take(2).map { it[0] }.joinToString("").uppercase()
+                        Text(
+                            text = initials,
+                            color = BrandPurple,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
                 ProfileAvatar(
                     initials = userName.toInitials(),
                     imageUrl = userAvatarUrl,
@@ -326,7 +355,7 @@ private fun PostPreviewCard(
                     Text(
                         text = "Artist • India • Just now",
                         fontSize = 12.sp,
-                        color = TextSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(onClick = { }) {
@@ -359,7 +388,10 @@ private fun PostPreviewCard(
                     Icon(
                         imageVector = Icons.Outlined.FavoriteBorder,
                         contentDescription = "Like",
-                        tint = TextSecondary
+
+                        tint = MaterialTheme.colorScheme.onSurface
+
+
                     )
                 }
                 Text(text = "0", fontSize = 13.sp, color = TextSecondary)
@@ -376,21 +408,97 @@ private fun PostPreviewCard(
                 IconButton(onClick = { }) {
                     Icon(
                         imageVector = Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Save",
-                        tint = TextSecondary
+
+                        contentDescription = "Save"
                     )
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                var expanded by remember { mutableStateOf(false) }
+                val displayName = userName.ifBlank { "Kala Artist" }
+                Text(
+                    buildString {
+                        append(displayName)
+                        append(" · ")
+                        append(description)
+                    },
+                    fontSize = 13.sp,
+                    maxLines = if (expanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!expanded && description.length > 50) {
+                    Text(
+                        text = "see more",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clickable { expanded = true }
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+        if (fullScreenImageIndex != null) {
+            FullScreenImageViewer(
+                images = imageBytes,
+                initialPage = fullScreenImageIndex!!,
+                onDismiss = { fullScreenImageIndex = null }
+            )
+        }
+    }
+
+}
+
+@Composable
+private fun ImageCarouselBytes(imageBytes: List<ByteArray>) {
+    val pagerState = rememberPagerState(
+        pageCount = { imageBytes.size }
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AsyncImage(
+                model = imageBytes[page],
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (imageBytes.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                repeat(imageBytes.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (index == pagerState.currentPage)
+                                    BrandPurple
+                                else
+                                    Color.Gray.copy(alpha = 0.6f)
+                            )
+                   )
                 }
             }
         }
     }
 
-    if (fullScreenImageIndex != null) {
-        FullScreenImageViewer(
-            images = imageBytes,
-            initialPage = fullScreenImageIndex!!,
-            onDismiss = { fullScreenImageIndex = null }
-        )
-    }
+
 }
 
 

@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -28,7 +29,7 @@ internal fun KalaBottomNav(
         Icons.Outlined.Person
     )
 
-    NavigationBar(containerColor = Color.White) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         items.forEachIndexed { index, icon ->
             NavigationBarItem(
                 selected = selectedIndex == index,

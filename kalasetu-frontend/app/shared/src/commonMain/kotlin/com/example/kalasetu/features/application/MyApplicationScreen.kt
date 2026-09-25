@@ -26,10 +26,10 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 private val PurplePrimary = Color(0xFF7466F1)
-private val LightPurpleBg = Color(0xFFF4F1FF)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
-private val BorderGray = Color(0xFFE0E0E0)
+private val LightPurpleBg @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderGray @Composable get() = MaterialTheme.colorScheme.outlineVariant
 
 private val StatusPendingBg = Color(0xFFFFF4E5)
 private val StatusPendingFg = Color(0xFFE69500)
@@ -78,11 +78,11 @@ fun MyApplicationsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -92,7 +92,7 @@ fun MyApplicationsScreen(
             // ─── Tabs ───
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = PurplePrimary,
                 edgePadding = 0.dp,
                 divider = {},
@@ -171,7 +171,7 @@ private fun ApplicationRow(app: Application, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, BorderGray),
         elevation = CardDefaults.cardElevation(0.dp),
     ) {

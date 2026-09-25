@@ -20,8 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-
-
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SelectArtistCategoriesScreen(
@@ -54,7 +52,7 @@ fun SelectArtistCategoriesScreen(
                 )
             }
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -159,7 +157,7 @@ fun CategorySection(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50)) // Fully rounded pill shape
-                        .background(if (isSelected) LightPurpleBg else Color.White)
+                        .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
                         .border(
                             width = 1.dp,
                             color = if (isSelected) PurplePrimary else BorderGray,

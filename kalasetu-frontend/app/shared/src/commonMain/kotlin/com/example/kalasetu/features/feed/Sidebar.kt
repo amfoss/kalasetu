@@ -38,7 +38,7 @@ fun SidebarContent(
     onNavigate: (String) -> Unit
 ) {
     ModalDrawerSheet(
-        drawerContainerColor = Color.White,
+        drawerContainerColor = MaterialTheme.colorScheme.surface,
         drawerShape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
         modifier = Modifier.fillMaxHeight().width(300.dp)
     ) {
@@ -96,7 +96,7 @@ fun SidebarContent(
                     )
                     Text(
                         text = userEmail ?: "",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp
                     )
                 }
@@ -119,13 +119,15 @@ fun SidebarContent(
             SidebarItem(icon = Icons.Outlined.AssignmentInd, label = "Applications", isSelected = currentRoute == "Applications",onClick = { onNavigate("Applications") })
             SidebarItem(icon = Icons.Outlined.ConfirmationNumber, label = "My Events",isSelected = currentRoute == "MyEvents", onClick = { onNavigate("MyEvents") })
 
-            //HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFEEEEEE))
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
 
             //SectionLabel("Communication")
             //SidebarItem(icon = Icons.Outlined.Notifications, label = "Notifications",isSelected = currentRoute == "Notifications", onClick = { onNavigate("Notifications") })
             //SidebarItem(icon = Icons.Outlined.Campaign, label = "Announcements",isSelected = currentRoute == "Announcements", onClick = { onNavigate("Announcements") })
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFEEEEEE))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
             SectionLabel("Profile")
             SidebarItem(icon = Icons.Outlined.Settings, label = "Settings",isSelected = currentRoute == "Settings", onClick = { onNavigate("Settings") })
@@ -139,7 +141,7 @@ fun SidebarContent(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        color = Color.Gray,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 12.sp,
         modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp)
     )
@@ -173,7 +175,7 @@ private fun SidebarItem(
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = label,
-                color = if (isSelected) SelectedPurple else Color.DarkGray,
+                color = if (isSelected) SelectedPurple else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 fontSize = 15.sp
             )

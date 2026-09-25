@@ -82,7 +82,7 @@ fun ExperienceScreen(
                         containerColor = if (selectedLevel == level)
                             SelectedPurple.copy(alpha = 0.08f)
                         else Color.Transparent,
-                        contentColor = Color(0xFF1C1B1F),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()

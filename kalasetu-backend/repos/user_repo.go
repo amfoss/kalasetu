@@ -88,6 +88,8 @@ func (r *userRepository) FindByID(ctx context.Context, id int) (*models.User, er
 	return user, nil
 }
 
+
+
 func (r *userRepository) StartOnboarding(ctx context.Context, userID int, onboardingUser models.OnboardingUser) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

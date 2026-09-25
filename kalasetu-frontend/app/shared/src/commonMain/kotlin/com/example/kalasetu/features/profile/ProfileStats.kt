@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,7 +40,7 @@ fun StatCardsRow(profile: Profile) {
         StatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Default.Star,
-            iconBg = Purple100,
+            iconBg = MaterialTheme.colorScheme.primaryContainer,
             iconTint = BrandPurple,
             value = profile.artworksCount.toDisplayCount(),
             label = "Artworks",
@@ -57,7 +58,7 @@ fun StatCardsRow(profile: Profile) {
         StatCard(
             modifier = Modifier.weight(1f),
             icon = Icons.Default.FavoriteBorder,
-            iconBg = Purple50,
+            iconBg = MaterialTheme.colorScheme.primaryContainer,
             iconTint = LightPurple,
             value = profile.totalLikes.toDisplayCount(),
             label = "Likes"
@@ -78,7 +79,7 @@ fun StatCard(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = CardWhite
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 1.dp
@@ -110,13 +111,13 @@ fun StatCard(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = TextSecondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

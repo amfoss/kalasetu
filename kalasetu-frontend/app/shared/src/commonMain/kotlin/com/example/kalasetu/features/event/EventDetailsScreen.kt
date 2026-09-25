@@ -69,17 +69,17 @@ fun EventDetailsScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
         if (event == null) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Event not found", color = Color(0xFF757575))
+                Text("Event not found", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -107,7 +107,7 @@ fun EventDetailsScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFFF4F1FF)),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.Image, contentDescription = null, tint = Color(0xFF7466F1), modifier = Modifier.size(48.dp))
@@ -116,12 +116,12 @@ fun EventDetailsScreen(
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
-                Text(event.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                Text(event.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(8.dp))
-                Text(event.description, fontSize = 14.sp, color = Color(0xFF757575), lineHeight = 20.sp)
+                Text(event.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 20.sp)
 
                 Spacer(Modifier.height(20.dp))
-                HorizontalDivider(color = Color(0xFFEEEEEE))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(Modifier.height(16.dp))
 
                 DetailRow(icon = Icons.Default.CalendarToday, label = "Dates", value = formatEventDuration(event.startDate, event.endDate))
@@ -129,7 +129,7 @@ fun EventDetailsScreen(
 
                 if (event.organizerName.isNotBlank() || event.email.isNotBlank()) {
                     Spacer(Modifier.height(16.dp))
-                    Text("Organizer Contact", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                    Text("Organizer Contact", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.height(8.dp))
                     if (event.organizerName.isNotBlank()) {
                         DetailRow(icon = Icons.Default.Email, label = "Organizer", value = event.organizerName)
@@ -147,11 +147,11 @@ fun EventDetailsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Gallery", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                        Text("Gallery", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         Text(
                             "${event.galleryBytes.size} photo${if (event.galleryBytes.size > 1) "s" else ""}",
                             fontSize = 12.sp,
-                            color = Color(0xFF757575),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Spacer(Modifier.height(12.dp))
@@ -181,18 +181,18 @@ fun EventDetailsScreen(
                 Spacer(Modifier.height(32.dp))
 
                 // ─── Open Opportunities Section ───
-                Text("Open Opportunities", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                Text("Open Opportunities", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(8.dp))
                 if (eventOpps.isEmpty()) {
                     Surface(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        color = Color(0xFFF8F9FA),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             "No active opportunities currently open for this event.",
                             fontSize = 13.sp,
-                            color = Color(0xFF757575),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(16.dp)
                         )
                     }
@@ -202,13 +202,13 @@ fun EventDetailsScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF4F1FF))
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(opp.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E1E1E))
+                                    Text(opp.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                                     if (opp.description.isNotBlank()) {
                                         Spacer(Modifier.height(4.dp))
-                                        Text(opp.description, fontSize = 13.sp, color = Color(0xFF757575))
+                                        Text(opp.description, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Spacer(Modifier.height(12.dp))
                                     Row(
@@ -260,14 +260,14 @@ private fun DetailRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFFF4F1FF)),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = Color(0xFF7466F1), modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, fontSize = 13.sp, color = Color(0xFF757575), modifier = Modifier.width(72.dp))
-        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1E1E1E), modifier = Modifier.weight(1f))
+        Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(72.dp))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
     }
 }
 

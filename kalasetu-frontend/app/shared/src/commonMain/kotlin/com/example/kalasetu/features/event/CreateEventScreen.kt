@@ -39,7 +39,6 @@ import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
 
-
 // ─── Shared validators (used by ApplicationFormScreen too) ───
 internal fun isValidEmail(email: String): Boolean =
     email.trim().matches(Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"))
@@ -161,8 +160,8 @@ fun CreateEventScreen(
                         showErrors = true
                     }
                 },
-                containerColor = if (isFormValid) LightPurpleBg else Color(0xFFEDEDED),
-                contentColor = if (isFormValid) TextDark else Color(0xFF9E9E9E),
+                containerColor = if (isFormValid) LightPurpleBg else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (isFormValid) TextDark else MaterialTheme.colorScheme.onSurfaceVariant,
                 shape = CircleShape,
                 modifier = Modifier.size(56.dp),
             ) {
@@ -173,7 +172,7 @@ fun CreateEventScreen(
                 )
             }
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -358,7 +357,7 @@ fun CreateEventScreen(
     if (showSourcePicker) {
         ModalBottomSheet(
             onDismissRequest = { showSourcePicker = false },
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = { BottomSheetDefaults.DragHandle() },
         ) {
             Column(Modifier.fillMaxWidth().padding(bottom = 40.dp, top = 8.dp)) {
@@ -410,7 +409,7 @@ fun CustomTextField(
             value = value,
             onValueChange = onValueChange,
             placeholder = {
-                Text(text = placeholder, color = Color(0xFFBDBDBD), fontSize = 14.sp)
+                Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -419,8 +418,8 @@ fun CustomTextField(
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = if (errorMessage != null) ErrorRed else BorderGray,
                 focusedBorderColor = if (errorMessage != null) ErrorRed else PurplePrimary,
-                unfocusedContainerColor = Color.White,
-                focusedContainerColor = Color.White,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
             trailingIcon = trailingIcon,
             singleLine = singleLine,
@@ -572,7 +571,7 @@ fun GalleryUploadBox(
                                     .padding(4.dp)
                                     .size(20.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .clickable { onRemoveImage(index) },
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -589,7 +588,7 @@ fun GalleryUploadBox(
                         modifier = Modifier
                             .size(80.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White)
+                            .background(MaterialTheme.colorScheme.surface)
                             .clickable { onAddClick() },
                         contentAlignment = Alignment.Center,
                     ) {

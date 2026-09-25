@@ -26,10 +26,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 private val PurplePrimary = Color(0xFF7466F1)
-private val LightPurpleBg = Color(0xFFF4F1FF)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
-private val BorderGray = Color(0xFFE0E0E0)
+private val LightPurpleBg @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderGray @Composable get() = MaterialTheme.colorScheme.outlineVariant
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -57,7 +57,7 @@ fun CreateOpportunityScreen(
                 },
                 actions = {
                     Surface(
-                        color = Color(0xFFF5F5F5),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
@@ -68,11 +68,11 @@ fun CreateOpportunityScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
-            Surface(shadowElevation = 8.dp, color = Color.White) {
+            Surface(shadowElevation = 8.dp, color = MaterialTheme.colorScheme.surface) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -120,7 +120,7 @@ fun CreateOpportunityScreen(
                 }
             }
         },
-        containerColor = Color(0xFFF8F9FA)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { padding ->
         Column(
             modifier = Modifier
@@ -187,7 +187,7 @@ fun CreateOpportunityScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF8F9FA))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(12.dp)
                     ) {
                         Row(
@@ -203,7 +203,7 @@ fun CreateOpportunityScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 4.dp)
                             ) {
@@ -250,7 +250,7 @@ fun SectionCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -289,7 +289,7 @@ fun SectionCard(
 fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = if (isSelected) PurplePrimary else Color(0xFFF5F5F5),
+        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(20.dp),
         border = if (isSelected) null else BorderStroke(1.dp, BorderGray)
     ) {
@@ -298,7 +298,7 @@ fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
                 Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
             }
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (isSelected) Color.White else TextGray)
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -331,8 +331,8 @@ fun CustomTextField(
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = BorderGray,
                 focusedBorderColor = PurplePrimary,
-                unfocusedContainerColor = Color(0xFFF8F9FA),
-                focusedContainerColor = Color(0xFFF8F9FA)
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
             ),
             leadingIcon = leadingIcon,
             singleLine = singleLine
@@ -344,7 +344,7 @@ fun CustomTextField(
 fun DateSelector(label: String, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = Color(0xFFF8F9FA),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, BorderGray)
     ) {

@@ -20,3 +20,25 @@ query GetPosts($limit: Int, $offset: Int) {
         createdAt
     }
 }
+query GetPostsByUser($userId: ID!, $limit: Int, $offset: Int) {
+    postsByUser(userId: $userId, limit: $limit, offset: $offset) {
+        id
+        userId
+        userName
+        content
+        media {
+            id
+            postId
+            url
+            mediaType
+            sortOrder
+            createdAt
+        }
+        categoryId
+        categoryName
+        likeCount
+        commentCount
+        isLikedByMe
+        createdAt
+    }
+}

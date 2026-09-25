@@ -30,9 +30,9 @@ import coil3.compose.AsyncImage
 import io.github.vinceglb.filekit.compose.rememberFileSaverLauncher
 
 private val PurplePrimary = Color(0xFF7466F1)
-private val LightPurpleBg = Color(0xFFF4F1FF)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
+private val LightPurpleBg @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 private val SuccessGreen = Color(0xFF2E7D32)
 private val SuccessGreenBg = Color(0xFFE5F7E5)
 private val RejectRed = Color(0xFFD32F2F)
@@ -67,10 +67,10 @@ fun ApplicationPreviewScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -95,7 +95,7 @@ fun ApplicationPreviewScreen(
                             modifier = Modifier
                                 .size(84.dp)
                                 .clip(CircleShape)
-                                .background(Color.White),
+                                .background(MaterialTheme.colorScheme.surface),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (liveApp.applicantAvatarBytes != null) {
@@ -342,7 +342,7 @@ private fun AttachmentRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .clickable { onDownload() },
             contentAlignment = Alignment.Center,
         ) {
