@@ -9,7 +9,17 @@ object ApplicationStore {
     val applications: StateFlow<List<Application>> = _applications.asStateFlow()
 
     fun addApplication(app: Application) {
-        _applications.value = _applications.value + app
+        val current = _applications.value
+        val exists = current.any { it.id == app.id }
+        if (exists) {
+            _applications.value = current.map { if (it.id == app.id) app else it }
+        } else {
+            _applications.value = current + app
+        }
+    }
+
+    fun setApplications(apps: List<Application>) {
+        _applications.value = apps
     }
 
     fun applicationsForEvent(eventId: String): List<Application> =

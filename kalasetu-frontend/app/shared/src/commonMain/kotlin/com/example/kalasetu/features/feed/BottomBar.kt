@@ -3,6 +3,7 @@ package com.example.kalasetu.features.feed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -13,17 +14,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.example.kalasetu.theme.SelectedPurple
 import com.example.kalasetu.theme.SubtitleGray
-
 @Composable
 internal fun KalaBottomNav(
     selectedIndex: Int,
-    onStoreClick: () -> Unit,
     onHomeClick: () -> Unit,
+    onEventsClick: () -> Unit,
+    onStoreClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
     val items = listOf(
-        Icons.Filled.Storefront,
         Icons.Filled.Home,
+        Icons.Outlined.Event,
+        Icons.Filled.Storefront,
         Icons.Outlined.Person
     )
 
@@ -33,12 +35,18 @@ internal fun KalaBottomNav(
                 selected = selectedIndex == index,
                 onClick = {
                     when (index) {
-                        0 -> onStoreClick()
-                        1 -> onHomeClick()
-                        2 -> onProfileClick()
+                        0 -> onHomeClick()
+                        1 -> onEventsClick()
+                        2 -> onStoreClick()
+                        3 -> onProfileClick()
                     }
                 },
-                icon = { Icon(icon, contentDescription = null) },
+                icon = {
+                    Icon(
+                        icon,
+                        contentDescription = null
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Color.White,
                     indicatorColor = SelectedPurple,

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.filled.Menu
+import com.example.kalasetu.features.feed.KalaBottomNav
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,12 +27,19 @@ fun ArtistHomeScreen(
     viewModel: EventListViewModel,
     onEventClick: (String) -> Unit,
     onSwitchRole: () -> Unit = {},
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onMyEventsClick: () -> Unit,
+    onStoreClick: () -> Unit,
+    onEventsClick: () -> Unit,
+    onHomeClick: () -> Unit,
+    onProfileClick: () -> Unit
 ) {
     val events by viewModel.events.collectAsStateWithLifecycle()
+
     LaunchedEffect(Unit) {
         viewModel.loadEvents(isOrganizer = false)
     }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -43,9 +51,10 @@ fun ArtistHomeScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
-                        IconButton(onClick = onMenuClick) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
-                        }
+                        Icon(
+                            Icons.Default.Menu,
+                            contentDescription = "Menu"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -53,27 +62,72 @@ fun ArtistHomeScreen(
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
-    ) { padding ->
-        if (events.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No events yet", color = TextGray)
-            }
-        } else {
-            LazyColumn(
+
+        // ─── Bottom Navigation ───
+        bottomBar = {
+            KalaBottomNav(
+                selectedIndex = 1, // Events
+                onStoreClick = onStoreClick,
+                onEventsClick = onEventsClick,
+                onHomeClick = onHomeClick,
+                onProfileClick = onProfileClick
+            )
+        },
+
+        containerColor = Color.White
+        ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+
+            Button(
+                onClick = onMyEventsClick,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                item { Spacer(Modifier.height(8.dp)) }
-                items(events, key = { it.id }) { event ->
-                    EventCard(event = event) {
-                        onEventClick(event.id)
+                Text(
+                    text = "My Events",
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            if (events.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No events yet",
+                        color = TextGray
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    items(events) { event ->
+                        EventCard(event = event) {
+                            onEventClick(event.id)
+                        }
+                    }
+
+                    item {
+                        Spacer(Modifier.height(16.dp))
                     }
                 }
-                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }

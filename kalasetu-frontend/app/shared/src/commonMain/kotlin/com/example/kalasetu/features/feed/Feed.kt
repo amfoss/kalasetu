@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -23,19 +24,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
+import com.example.kalasetu.features.profile.*
 import com.example.kalasetu.features.profile.toInitials
 import com.example.kalasetu.features.settings.SavedStore
 import com.example.kalasetu.theme.KalasetuTheme
 import com.example.kalasetu.theme.SelectedPurple
 import com.example.kalasetu.theme.SubtitleGray
 import com.example.kalasetu.theme.UnselectedBorder
-import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 data class ArtistPost(
     val id: Int,
@@ -98,6 +106,7 @@ fun FeedScreen(
     userName: String? = null,
     onNavigateToProfile: () -> Unit = {},
     onNavigateToStore: () -> Unit = {},
+    onNavigateToEvents: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
@@ -132,9 +141,10 @@ fun FeedScreen(
         },
         bottomBar = {
             KalaBottomNav(
-                selectedIndex = 1,
-                onHomeClick = onNavigateToHome,
+                selectedIndex = 0, // Home/Dashboard
                 onStoreClick = onNavigateToStore,
+                onEventsClick = onNavigateToEvents,
+                onHomeClick = onNavigateToHome,
                 onProfileClick = onNavigateToProfile
             )
         }
@@ -201,7 +211,7 @@ internal fun FeedContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        items(posts, key = { it.id }) { post ->
+        items(posts) { post ->
             PostCard(
                 post = post,
                 saved = post.id in savedIds,
@@ -222,19 +232,30 @@ internal fun KalaTopBar(
     avatarBytes: ByteArray?,
     userName: String?,
     onProfileClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    title: String = "KalaSetu",
+    onBack: (() -> Unit)? = null,
 ) {
     CenterAlignedTopAppBar(
         title = {
             Text(
-                text = "KalaSetu",
+                text = title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp
             )
         },
         navigationIcon = {
-            IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu")
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
+            } else {
+                IconButton(onClick = onMenuClick) {
+                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                }
             }
         },
         actions = {
@@ -328,45 +349,59 @@ internal fun PostCard(
     onCommentClick: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var fullScreenImageIndex by remember { mutableStateOf<Int?>(null) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, UnselectedBorder.copy(alpha = 0.4f))
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = SurfaceWhite
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        ),
+        border = BorderStroke(1.dp, DividerGray.copy(alpha = 0.4f))
     ) {
-        Column {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = post.avatarUrl,
-                    contentDescription = post.artistName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(post.avatarBackground)
+                ProfileAvatar(
+                    initials = post.artistName.toInitials(),
+                    imageUrl = post.avatarUrl,
+                    avatarBytes = null
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(post.artistName, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+
+                Spacer(Modifier.width(10.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = post.artistName,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+
                     Text(
                         text = "${post.craft} • ${post.location} • ${post.timeAgo}",
                         fontSize = 12.sp,
-                        color = SubtitleGray
+                        color = TextSecondary
                     )
                 }
+
                 if (post.isMine) {
                     Box {
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = TextSecondary)
                         }
                         DropdownMenu(
                             expanded = showMenu,
@@ -387,12 +422,28 @@ internal fun PostCard(
                 }
             }
 
-            ImageCarousel(images = post.images)
+            Text(
+                text = post.caption,
+                fontSize = 14.sp,
+                color = TextPrimary,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 14.dp)
+            )
+
+            if (post.images.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                ImageCarousel(
+                    images = post.images,
+                    onImageClick = { index -> fullScreenImageIndex = index }
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onLikeClick) {
@@ -403,19 +454,30 @@ internal fun PostCard(
                     )
                 }
                 Text(text = "${post.likes}", fontSize = 13.sp)
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                IconButton(onClick = onCommentClick) {
-                    Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "Comments")
-                }
-                Text(
-                    text = "${post.comments}",
-                    fontSize = 13.sp,
-                    modifier = Modifier.clickable { onCommentClick() }
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = null,
+                    tint = BrandPurple,
+                    modifier = Modifier.size(14.dp)
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "${post.likes} likes",
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+
+                Text("•", color = TextSecondary)
+
+                Text(
+                    text = "${post.comments} comments",
+                    fontSize = 12.sp,
+                    color = TextSecondary,
+                    modifier = Modifier.clickable { onCommentClick() }
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
 
                 IconButton(onClick = onSaveClick) {
                     Icon(
@@ -425,14 +487,44 @@ internal fun PostCard(
                     )
                 }
             }
+            HorizontalDivider(
+                color = DividerGray,
+                thickness = 1.dp
+            )
 
-            Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
+                FeedPostActionButton(
+                    icon = if (post.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    label = "Like",
+                    tint = if (post.isLiked) Color.Red else TextSecondary,
+                    onClick = onLikeClick
+                )
+
+                FeedPostActionButton(
+                    icon = Icons.Default.Star,
+                    label = "Comment",
+                    onClick = onCommentClick
+                )
+
+                FeedPostActionButton(
+                    icon = Icons.Default.Share,
+                    label = "Share",
+                    onClick = { /* Share logic */ }
+                )
                 var expanded by remember { mutableStateOf(false) }
                 Text(
-                    buildString {
-                        append(post.artistName)
+                    buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(fontWeight = FontWeight.Bold)
+                        ) {
+                            append(post.artistName)
+                        }
+
                         append(" · ")
                         append(post.caption)
                     },
@@ -440,79 +532,178 @@ internal fun PostCard(
                     maxLines = if (expanded) Int.MAX_VALUE else 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (!expanded) {
-                    Text(
-                        text = "see more",
-                        fontSize = 12.sp,
-                        color = SubtitleGray,
-                        modifier = Modifier.clickable { expanded = true }
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
             }
         }
+
+
+    if (fullScreenImageIndex != null) {
+        FullScreenImageViewer(
+            images = post.images,
+            initialPage = fullScreenImageIndex!!,
+            onDismiss = { fullScreenImageIndex = null }
+        )
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ImageCarousel(images: List<String>) {
+private fun ImageCarousel(
+    images: List<String>,
+    onImageClick: (Int) -> Unit
+) {
+    var maxHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
 
-    val pagerState = rememberPagerState(
-        pageCount = { images.size }
-    )
-
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .background(Purple50.copy(alpha = 0.5f))
     ) {
+        val maxWidthPx = constraints.maxWidth
+
+        val heightModifier = if (maxHeightPx > 0) {
+            Modifier.height(with(density) { maxHeightPx.toDp() })
+        } else {
+            Modifier.heightIn(min = 200.dp, max = 500.dp).wrapContentHeight()
+        }
+
+        val pagerState = rememberPagerState(pageCount = { images.size })
 
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = heightModifier.fillMaxWidth()
         ) { page ->
-
-            AsyncImage(
-                model = images[page],
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                onLoading = {
-                    println("IMAGE LOADING: ${images[page]}")
-                },
-                onSuccess = {
-                    println("IMAGE SUCCESS: ${images[page]}")
-                },
-                onError = {
-                    println("IMAGE ERROR: ${images[page]}")
-                    println("IMAGE ERROR DETAILS: ${it.result.throwable}")
-                }
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onImageClick(page) },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = images[page],
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = { state ->
+                        if (page == 0 && maxHeightPx == 0) {
+                            val intrinsicSize = state.painter.intrinsicSize
+                            if (intrinsicSize.width > 0) {
+                                val aspect = intrinsicSize.height / intrinsicSize.width
+                                val clampedAspect = aspect.coerceIn(0.5f, 1.25f)
+                                maxHeightPx = (maxWidthPx * clampedAspect).toInt()
+                            }
+                        }
+                    }
+                )
+            }
         }
 
-        // Dots
         if (images.size > 1) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 12.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                images.indices.forEach { index ->
+                repeat(images.size) { index ->
                     Box(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
                             .background(
                                 if (index == pagerState.currentPage)
-                                    SelectedPurple
+                                    Color.White
                                 else
-                                    Color.White.copy(alpha = 0.6f)
+                                    Color.White.copy(alpha = 0.5f)
                             )
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun FullScreenImageViewer(
+    images: List<Any>,
+    initialPage: Int,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { images.size })
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                pageSpacing = 16.dp
+            ) { page ->
+                AsyncImage(
+                    model = images[page],
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 40.dp, start = 16.dp)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+
+            if (images.size > 1) {
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${images.size}",
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 40.dp),
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FeedPostActionButton(
+    icon: ImageVector,
+    label: String,
+    tint: Color = TextSecondary,
+    onClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
+
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            color = TextSecondary,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

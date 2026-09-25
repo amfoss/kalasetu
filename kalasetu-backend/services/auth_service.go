@@ -20,7 +20,11 @@ var (
 	ErrUserAlreadyExists  = errors.New("user already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid token")
+
 	ErrInvalidPassword    = errors.New("current password is incorrect")
+
+	ErrSamePassword       = errors.New("new password cannot be same as the current one")
+
 )
 
 type AuthService interface {
@@ -150,33 +154,7 @@ func (s *authService) RefreshToken(ctx context.Context, rawToken string) (*model
 	}, nil
 }
 
-func (s *authService) ChangePassword(ctx context.Context, userID int, input models.ChangePasswordInput) error {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return err
-	}
-	if user == nil {
-		return ErrInvalidToken
-	}
 
-	// Verify the current password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.OldPassword))
-	if err != nil {
-		return ErrInvalidPassword
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
-	}
-
-	if err := s.userRepo.UpdatePassword(ctx, userID, string(hashedPassword)); err != nil {
-		return err
-	}
-
-	// Invalidate all existing refresh tokens so the change sticks everywhere
-	return s.refreshTokenRepo.RevokeAllForUser(ctx, userID)
-}
 
 func (s *authService) generateTokens(ctx context.Context, user *models.User) (string, string, error) {
 	accessToken, err := s.generateAccessToken(user)
@@ -222,6 +200,41 @@ func (s *authService) generateAccessToken(user *models.User) (string, error) {
 	})
 
 	return token.SignedString([]byte(accessSecret))
+}
+
+func (s *authService) ChangePassword(ctx context.Context, userID int, input models.ChangePasswordInput) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrInvalidCredentials
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.CurrentPassword))
+	if err != nil {
+		return ErrInvalidCredentials
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.NewPassword)) == nil {
+		return ErrSamePassword
+	}
+
+	newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	err = s.userRepo.UpdatePassword(ctx, userID, string(newHashedPassword))
+	if err != nil {
+		return err
+	}
+
+	if err := s.refreshTokenRepo.RevokeAllForUser(ctx, userID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Helper: Generate secure random token

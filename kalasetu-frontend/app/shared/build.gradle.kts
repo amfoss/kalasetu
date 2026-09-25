@@ -31,8 +31,7 @@ if (envFile.exists()) {
     }
 }
 
-val apiBaseUrl = env["API_BASE_URL"]
-    ?: error("API_BASE_URL is missing from ../.env")
+val apiBaseUrl = env["API_BASE_URL"] ?: "" // Fallback to empty string if missing to avoid sync error
 
 buildkonfig {
     packageName = "com.example.kalasetu"
@@ -106,10 +105,11 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.materialIconsCore)
             implementation(libs.compose.materialIconsExtended)
+            implementation("org.jetbrains.compose.ui:ui-backhandler:1.11.1")
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.coil.compose)
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
+            implementation(libs.kotlinx.datetime)
             implementation(libs.apollo.runtime)
             implementation(libs.filekit.core)
             implementation(libs.filekit.compose)

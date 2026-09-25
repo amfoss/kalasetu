@@ -79,31 +79,43 @@ fun CreateOpportunityScreen(
                 ) {
                     OutlinedButton(
                         onClick = { 
-                            viewModel.submit(eventId, true) {
-                                onFinish()
+                            if (!state.isSubmitting) {
+                                viewModel.submit(eventId, true) {
+                                    onFinish()
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, BorderGray)
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Save Draft", color = TextDark)
+                        if (state.isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Save Draft", color = TextDark)
+                        }
                     }
                     Button(
                         onClick = { 
-                            viewModel.submit(eventId, false) {
-                                onFinish()
+                            if (!state.isSubmitting) {
+                                viewModel.submit(eventId, false) {
+                                    onFinish()
+                                }
                             }
                         },
                         modifier = Modifier.weight(1.2f),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)
                     ) {
-                        Text("Review & Publish")
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        if (state.isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text("Review & Publish")
+                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }

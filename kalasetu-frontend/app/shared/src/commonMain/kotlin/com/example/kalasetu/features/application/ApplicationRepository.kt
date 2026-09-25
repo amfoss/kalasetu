@@ -101,7 +101,7 @@ object ApplicationRepository {
 
             val response = ApiClient.apolloClient.mutation(SubmitApplicationMutation(input)).execute()
             val gApp = response.data?.submitApplication
-            if (gApp != null) {
+            if (gApp != null && !gApp.id.isNullOrBlank()) {
                 val date = try { gApp.createdAt.take(10).let { LocalDate.parse(it) } } catch (_: Exception) { null }
                 val app = Application(
                     id = gApp.id,
@@ -114,10 +114,10 @@ object ApplicationRepository {
                     status = parseStatus(gApp.status),
                     submittedAt = date
                 )
-                ApplicationStore.addApplication(app)
+                // Don't add to store here, let the UI callback handle it to avoid duplication
                 Result.success(app)
             } else {
-                val err = response.errors?.firstOrNull()?.message ?: "Failed to submit application"
+                val err = response.errors?.firstOrNull()?.message ?: "Failed to submit application (No ID returned)"
                 Result.failure(Exception(err))
             }
         } catch (e: Exception) {

@@ -22,10 +22,6 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type ChangePasswordInput struct {
-	OldPassword string `json:"old_password" binding:"required"`
-	NewPassword string `json:"new_password" binding:"required,min=6"`
-}
 
 type RefreshInput struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
@@ -58,4 +54,9 @@ type OnboardingUser struct {
 	Labels         []string `json:"labels"`
 	Bio            string   `json:"bio"`
 	ProfilePicture string   `json:"profile_picture"`
+}
+
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
 }

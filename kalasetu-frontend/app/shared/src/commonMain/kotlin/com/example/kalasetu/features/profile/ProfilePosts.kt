@@ -4,16 +4,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
@@ -22,23 +30,28 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import kotlinx.datetime.Instant
 import kotlin.time.Clock
@@ -101,6 +114,9 @@ fun PostCard(
     profile: Profile,
     post: DraftPost
 ) {
+    var fullScreenImageIndex by remember { mutableStateOf<Int?>(null) }
+    val imagesToDisplay = if (post.imageUrl != null) listOf(post.imageUrl) else post.imageBytes
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -159,22 +175,12 @@ fun PostCard(
                 modifier = Modifier.padding(horizontal = 14.dp)
             )
 
-            if (post.imageUrl != null) {
+            val displayImages = if (post.imageUrl != null) listOf(post.imageUrl) else post.imageBytes
+            if (displayImages.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-
-                AsyncImage(
-                    model = post.imageUrl,
-                    contentDescription = "Post image",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                )
-            } else if (post.imageBytes.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-
                 PostImageCarousel(
-                    imageBytes = post.imageBytes
+                    images = displayImages,
+                    onImageClick = { index -> fullScreenImageIndex = index }
                 )
             }
 
@@ -240,53 +246,87 @@ fun PostCard(
             }
         }
     }
-}
-@Composable
-private fun PostImageCarousel(
-    imageBytes: List<ByteArray>
-) {
-    val pagerState = rememberPagerState(
-        pageCount = { imageBytes.size }
-    )
 
-    Box(
+    if (fullScreenImageIndex != null) {
+        FullScreenImageViewer(
+            images = imagesToDisplay,
+            initialPage = fullScreenImageIndex!!,
+            onDismiss = { fullScreenImageIndex = null }
+        )
+    }
+}
+
+@Composable
+internal fun PostImageCarousel(
+    images: List<Any>,
+    onImageClick: (Int) -> Unit
+) {
+    var maxHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
+            .background(Purple50.copy(alpha = 0.5f))
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
+        val maxWidthPx = constraints.maxWidth
 
-            AsyncImage(
-                model = imageBytes[page],
-                contentDescription = "Post image ${page + 1}",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
+        val heightModifier = if (maxHeightPx > 0) {
+            Modifier.height(with(density) { maxHeightPx.toDp() })
+        } else {
+            Modifier.heightIn(min = 200.dp, max = 500.dp).wrapContentHeight()
         }
 
-        // Page indicators
-        if (imageBytes.size > 1) {
+        val pagerState = rememberPagerState(pageCount = { images.size })
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = heightModifier.fillMaxWidth()
+        ) { page ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onImageClick(page) },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = images[page],
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = { state ->
+                        if (page == 0 && maxHeightPx == 0) {
+                            val intrinsicSize = state.painter.intrinsicSize
+                            if (intrinsicSize.width > 0) {
+                                val aspect = intrinsicSize.height / intrinsicSize.width
+                                val clampedAspect = aspect.coerceIn(0.5f, 1.25f)
+                                maxHeightPx = (maxWidthPx * clampedAspect).toInt()
+                            }
+                        }
+                    }
+                )
+            }
+        }
+
+        if (images.size > 1) {
             Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 12.dp)
+                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                repeat(imageBytes.size) { index ->
+                repeat(images.size) { index ->
                     Box(
                         modifier = Modifier
                             .size(6.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .clip(CircleShape)
                             .background(
                                 if (index == pagerState.currentPage)
-                                    BrandPurple
+                                    Color.White
                                 else
-                                    androidx.compose.ui.graphics.Color.Gray.copy(
-                                        alpha = 0.6f
-                                    )
+                                    Color.White.copy(alpha = 0.5f)
                             )
                     )
                 }
@@ -294,6 +334,60 @@ private fun PostImageCarousel(
         }
     }
 }
+
+@Composable
+fun FullScreenImageViewer(
+    images: List<Any>,
+    initialPage: Int,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { images.size })
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                pageSpacing = 16.dp
+            ) { page ->
+                AsyncImage(
+                    model = images[page],
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 40.dp, start = 16.dp)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+
+            if (images.size > 1) {
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${images.size}",
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 40.dp),
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun PostActionButton(
     icon: ImageVector,

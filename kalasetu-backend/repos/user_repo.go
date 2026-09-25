@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"kalasetu/models"
 	"time"
-	"fmt"
 )
 
 type UserRepository interface {
@@ -88,15 +88,7 @@ func (r *userRepository) FindByID(ctx context.Context, id int) (*models.User, er
 	return user, nil
 }
 
-func (r *userRepository) UpdatePassword(ctx context.Context, userID int, hashedPassword string) error {
-	query := `
-		UPDATE users
-		SET password = $1, updated_at = $2
-		WHERE id = $3
-	`
-	_, err := r.db.ExecContext(ctx, query, hashedPassword, time.Now(), userID)
-	return err
-}
+
 
 func (r *userRepository) StartOnboarding(ctx context.Context, userID int, onboardingUser models.OnboardingUser) error {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -159,4 +151,16 @@ func (r *userRepository) StartOnboarding(ctx context.Context, userID int, onboar
 	}
 
 	return tx.Commit()
+}
+
+func (r *userRepository) UpdatePassword(ctx context.Context, userID int, hashedPassword string) error {
+	query := `
+		UPDATE users SET password = $1, updated_at = $2 WHERE id = $3
+	`
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx, query, hashedPassword, now, userID)
+	if err != nil {
+		return fmt.Errorf("password update failed for user %d: %w", userID, err)
+	}
+	return nil
 }

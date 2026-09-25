@@ -81,6 +81,36 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID, err := middlewares.GetUserIDFromContext(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var input models.ChangePasswordInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = h.authService.ChangePassword(c.Request.Context(), userID, input)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidCredentials) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "incorrect current password"})
+			return
+		}
+		if errors.Is(err, services.ErrSamePassword) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "password changed successfully"})
+}
+
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	token, err := c.Cookie("refresh_token")
 	if err != nil || token == "" {
@@ -104,28 +134,4 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func (h *AuthHandler) ChangePassword(c *gin.Context) {
-	userID := c.GetInt(middlewares.UserIDGinKey)
-	if userID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
 
-	var input models.ChangePasswordInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	err := h.authService.ChangePassword(c.Request.Context(), userID, input)
-	if err != nil {
-		if errors.Is(err, services.ErrInvalidPassword) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "password changed successfully"})
-}
