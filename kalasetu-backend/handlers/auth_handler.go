@@ -33,6 +33,50 @@ func setRefreshTokenCookie(c *gin.Context, token string, maxAge int) {
 	)
 }
 
+func (h *AuthHandler) SendOTP(c *gin.Context) {
+	var input models.SendOTPInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.authService.SendOTP(c.Request.Context(), input); err != nil {
+		if errors.Is(err, services.ErrUserAlreadyExists) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "verification code sent successfully"})
+}
+
+func (h *AuthHandler) VerifyOTP(c *gin.Context) {
+	var input models.VerifyOTPInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ok, err := h.authService.VerifyOTP(c.Request.Context(), input)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidOTP) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid verification code"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "verification code verified successfully", "verified": true})
+}
+
 func (h *AuthHandler) Register(c *gin.Context) {
 	var input models.RegisterInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -44,6 +88,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, services.ErrUserAlreadyExists) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, services.ErrEmailNotVerified) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

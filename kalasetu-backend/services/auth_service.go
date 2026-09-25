@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"kalasetu/models"
 	"kalasetu/repos"
+	"math/big"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -24,29 +26,106 @@ var (
 	ErrInvalidPassword    = errors.New("current password is incorrect")
 
 	ErrSamePassword       = errors.New("new password cannot be same as the current one")
-
+	ErrInvalidOTP         = errors.New("invalid or expired verification code")
+	ErrEmailNotVerified   = errors.New("email is not verified, please verify OTP first")
 )
+
+const otpValidityDuration = 10 * time.Minute
 
 type AuthService interface {
 	Register(ctx context.Context, input models.RegisterInput) (*models.AuthResponse, error)
 	Login(ctx context.Context, input models.LoginInput) (*models.AuthResponse, error)
 	RefreshToken(ctx context.Context, token string) (*models.TokenResponse, error)
 	ChangePassword(ctx context.Context, userID int, input models.ChangePasswordInput) error
+	SendOTP(ctx context.Context, input models.SendOTPInput) error
+	VerifyOTP(ctx context.Context, input models.VerifyOTPInput) (bool, error)
 }
 
 type authService struct {
 	userRepo         repos.UserRepository
 	refreshTokenRepo repos.RefreshTokenRepository
+	otpRepo          repos.OTPRepository
+	emailService     EmailService
 }
 
-func NewAuthService(userRepo repos.UserRepository, refreshTokenRepo repos.RefreshTokenRepository) AuthService {
+func NewAuthService(
+	userRepo repos.UserRepository,
+	refreshTokenRepo repos.RefreshTokenRepository,
+	otpRepo repos.OTPRepository,
+	emailService EmailService,
+) AuthService {
 	return &authService{
 		userRepo:         userRepo,
 		refreshTokenRepo: refreshTokenRepo,
+		otpRepo:          otpRepo,
+		emailService:     emailService,
 	}
 }
 
+func (s *authService) SendOTP(ctx context.Context, input models.SendOTPInput) error {
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	purpose := strings.TrimSpace(input.Purpose)
+	if purpose == "" {
+		purpose = "signup"
+	}
+
+	if purpose == "signup" {
+		existing, err := s.userRepo.FindByEmail(ctx, email)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			return ErrUserAlreadyExists
+		}
+	}
+
+	otp, err := generateNumericOTP()
+	if err != nil {
+		return fmt.Errorf("failed to generate verification code: %w", err)
+	}
+
+	expiresAt := time.Now().Add(otpValidityDuration)
+	if s.otpRepo != nil {
+		if err := s.otpRepo.CreateOTP(ctx, email, otp, purpose, expiresAt); err != nil {
+			return fmt.Errorf("failed to store verification code: %w", err)
+		}
+	}
+
+	if s.emailService != nil {
+		if err := s.emailService.SendOTPEmail(ctx, email, otp, purpose); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *authService) VerifyOTP(ctx context.Context, input models.VerifyOTPInput) (bool, error) {
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	otp := strings.TrimSpace(input.OTP)
+	purpose := strings.TrimSpace(input.Purpose)
+	if purpose == "" {
+		purpose = "signup"
+	}
+
+	if s.otpRepo == nil {
+		return true, nil
+	}
+
+	ok, err := s.otpRepo.VerifyAndConsumeOTP(ctx, email, otp, purpose)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, ErrInvalidOTP
+	}
+
+	return true, nil
+}
+
 func (s *authService) Register(ctx context.Context, input models.RegisterInput) (*models.AuthResponse, error) {
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+
 	// Check if user already exists
 	existing, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err != nil {
@@ -54,6 +133,17 @@ func (s *authService) Register(ctx context.Context, input models.RegisterInput) 
 	}
 	if existing != nil {
 		return nil, ErrUserAlreadyExists
+	}
+
+	// Verify that email OTP was verified recently (within the last 10 minutes)
+	if s.otpRepo != nil {
+		verified, err := s.otpRepo.IsEmailVerified(ctx, input.Email, "signup", otpValidityDuration)
+		if err != nil {
+			return nil, err
+		}
+		if !verified {
+			return nil, ErrEmailNotVerified
+		}
 	}
 
 	// Hash password
@@ -88,6 +178,7 @@ func (s *authService) Register(ctx context.Context, input models.RegisterInput) 
 }
 
 func (s *authService) Login(ctx context.Context, input models.LoginInput) (*models.AuthResponse, error) {
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	user, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err != nil {
 		return nil, err
@@ -235,6 +326,14 @@ func (s *authService) ChangePassword(ctx context.Context, userID int, input mode
 	}
 
 	return nil
+}
+
+func generateNumericOTP() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(900000))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()+100000), nil
 }
 
 // Helper: Generate secure random token

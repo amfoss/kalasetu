@@ -53,9 +53,13 @@ func NewApp() *App {
 	}
 	log.Printf("Migrations done")
 
+	emailCfg := config.LoadEmailConfig()
+	emailService := services.NewEmailService(emailCfg)
+
+	otpRepo := repos.NewOTPRepository(db)
 	userRepo := repos.NewUserRepository(db)
 	refreshTokenRepo := repos.NewRefreshTokenRepository(db)
-	authService := services.NewAuthService(userRepo, refreshTokenRepo)
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, otpRepo, emailService)
 	authHandler := handlers.NewAuthHandler(authService)
 
 	userService := services.NewUserService(userRepo)
