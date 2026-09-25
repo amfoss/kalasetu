@@ -127,7 +127,7 @@ class AuthRepository {
                 setBody(
                     """
                     {
-                        "old_password": "${oldPassword.replace("\"", "\\\"")}",
+                        "current_password": "${oldPassword.replace("\"", "\\\"")}",
                         "new_password": "${newPassword.replace("\"", "\\\"")}"
                     }
                     """.trimIndent()
