@@ -11,4 +11,8 @@ object EventStore {
     fun addEvent(event: Event) {
         _events.value = _events.value + event
     }
+
+    fun clear() {
+        _events.value = emptyList()
+    }
 }

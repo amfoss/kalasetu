@@ -20,7 +20,11 @@ var (
 	ErrUserAlreadyExists  = errors.New("user already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid token")
+
+	ErrInvalidPassword    = errors.New("current password is incorrect")
+
 	ErrSamePassword       = errors.New("new password cannot be same as the current one")
+
 )
 
 type AuthService interface {
@@ -149,6 +153,8 @@ func (s *authService) RefreshToken(ctx context.Context, rawToken string) (*model
 		RefreshToken: newRawRefreshToken,
 	}, nil
 }
+
+
 
 func (s *authService) generateTokens(ctx context.Context, user *models.User) (string, string, error) {
 	accessToken, err := s.generateAccessToken(user)

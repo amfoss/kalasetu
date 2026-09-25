@@ -24,10 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 private val PurplePrimary = Color(0xFF7466F1)
-private val LightPurpleBg = Color(0xFFF4F1FF)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
-private val BorderGray = Color(0xFFE0E0E0)
+private val LightPurpleBg @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderGray @Composable get() = MaterialTheme.colorScheme.outlineVariant
 private val SuccessGreen = Color(0xFF4CAF50)
 private val SuccessGreenBg = Color(0xFFE8F5E9)
 
@@ -57,10 +57,10 @@ fun ApplicationStatusScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         Column(
             modifier = Modifier
@@ -75,7 +75,7 @@ fun ApplicationStatusScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray),
                 elevation = CardDefaults.cardElevation(2.dp),
             ) {
@@ -90,7 +90,7 @@ fun ApplicationStatusScreen(
                         modifier = Modifier
                             .size(90.dp)
                             .clip(CircleShape)
-                            .background(Color.White),
+                            .background(MaterialTheme.colorScheme.surface),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(
@@ -200,7 +200,7 @@ fun ApplicationStatusScreen(
                 showConnector = false,
                 title = "Notification",
                 subtitle = "You will be notified when the process is done",
-                boxBg = Color.White,
+                boxBg = MaterialTheme.colorScheme.surface,
                 boxBorder = BorderGray,
             )
 

@@ -61,7 +61,7 @@ fun CommentsBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
@@ -79,7 +79,7 @@ fun CommentsBottomSheet(
             ) {
                 Text(
                     text = "${commentsList.size}",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     modifier = Modifier.width(48.dp)
                 )
@@ -92,16 +92,16 @@ fun CommentsBottomSheet(
                     onClick = onDismissRequest,
                     modifier = Modifier.width(48.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.LightGray)
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
             // Comments List
             if (commentsList.isEmpty()) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text("No comments yet. Be the first to comment!", color = Color.Gray, fontSize = 14.sp)
+                    Text("No comments yet. Be the first to comment!", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
@@ -133,19 +133,19 @@ fun CommentsBottomSheet(
                     placeholder = {
                         Text(
                             text = "Add a comment...",
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
                     },
                     shape = RoundedCornerShape(26.dp),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF5F5F5),
-                        unfocusedContainerColor = Color(0xFFF5F5F5),
-                        disabledContainerColor = Color(0xFFF5F5F5),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
-                        cursorColor = Color.Black
+                        cursorColor = MaterialTheme.colorScheme.onSurface
                     ),
                     singleLine = true
                 )
@@ -213,7 +213,7 @@ fun CommentItem(comment: Comment, isReply: Boolean = false) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = comment.timeAgo,
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = if (isReply) 10.sp else 12.sp
                 )
             }
@@ -257,13 +257,13 @@ fun CommentItem(comment: Comment, isReply: Boolean = false) {
                             .padding(start = 48.dp, top = 8.dp),
                         textStyle = TextStyle(
                             fontSize = 14.sp,
-                            color = Color.Black
+                            color = MaterialTheme.colorScheme.onSurface
                         ),
-                        cursorBrush = SolidColor(Color.Black),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
                         singleLine = true,
                         decorationBox = { innerTextField ->
                             Surface(
-                                color = Color(0xFFF5F5F5),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(22.dp),
                                 modifier = Modifier.height(40.dp)
                             ) {
@@ -274,7 +274,7 @@ fun CommentItem(comment: Comment, isReply: Boolean = false) {
                                     if (replyText.isEmpty()) {
                                         Text(
                                             text = "Reply to ${comment.userName}...",
-                                            color = Color.Gray,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 12.sp
                                         )
                                     }
@@ -297,13 +297,13 @@ fun CommentItem(comment: Comment, isReply: Boolean = false) {
                 Icon(
                     imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                     contentDescription = "Like",
-                    tint = if (isLiked) Color.Red else Color.LightGray,
+                    tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(if (isReply) 16.dp else 20.dp)
                 )
             }
             Text(
                 text = likesCount.toString(),
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = if (isReply) 9.sp else 11.sp
             )
         }

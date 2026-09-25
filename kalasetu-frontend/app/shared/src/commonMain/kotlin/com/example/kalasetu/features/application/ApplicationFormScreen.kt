@@ -36,10 +36,10 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 private val PurplePrimary = Color(0xFF7466F1)
-private val LightPurpleBg = Color(0xFFF4F1FF)
-private val TextDark = Color(0xFF1E1E1E)
-private val TextGray = Color(0xFF757575)
-private val BorderGray = Color(0xFFE0E0E0)
+private val LightPurpleBg @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val TextDark @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextGray @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderGray @Composable get() = MaterialTheme.colorScheme.outlineVariant
 private val SuccessGreen = Color(0xFF2E7D32)
 private val SuccessGreenBg = Color(0xFFE5F7E5)
 private val ErrorRed = Color(0xFFD32F2F)
@@ -136,7 +136,7 @@ fun ApplicationFormScreen(
                         showErrors = true
                     }
                 },
-                containerColor = if (isFormValid) LightPurpleBg else Color(0xFFEDEDED),
+                containerColor = if (isFormValid) LightPurpleBg else MaterialTheme.colorScheme.surfaceVariant,
                 contentColor = if (isFormValid) TextDark else Color(0xFF9E9E9E),
                 shape = CircleShape,
                 modifier = Modifier.size(56.dp),
@@ -156,7 +156,7 @@ fun ApplicationFormScreen(
                 }
             }
         },
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -288,7 +288,7 @@ private fun AppValidatedField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = Color(0xFFBDBDBD), fontSize = 14.sp) },
+            placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp) },
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = minHeight),
@@ -297,8 +297,8 @@ private fun AppValidatedField(
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = if (errorMessage != null) ErrorRed else BorderGray,
                 focusedBorderColor = if (errorMessage != null) ErrorRed else PurplePrimary,
-                unfocusedContainerColor = Color.White,
-                focusedContainerColor = Color.White,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
             ),
             isError = errorMessage != null,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
@@ -348,7 +348,7 @@ private fun PortfolioUploadBox(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color.White),
+                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Default.PictureAsPdf, null, tint = PurplePrimary, modifier = Modifier.size(26.dp))

@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.ui.unit.dp
@@ -19,6 +20,12 @@ import com.example.kalasetu.features.opportunity.EditOpportunityScreen
 import com.example.kalasetu.features.marketplace.*
 import com.example.kalasetu.features.onboarding.*
 import com.example.kalasetu.features.profile.*
+import com.example.kalasetu.features.settings.SavedStore
+import com.example.kalasetu.features.settings.SettingsScreen
+import com.example.kalasetu.features.settings.SettingsStore
+import com.example.kalasetu.features.settings.ThemeMode
+import com.example.kalasetu.features.settings.rememberSettingsStorage
+import com.example.kalasetu.features.opportunity.OpportunityStore
 import com.example.kalasetu.navigation.BackHandler
 import com.example.kalasetu.navigation.Screen
 import com.example.kalasetu.theme.KalasetuTheme
@@ -53,11 +60,20 @@ fun App() {
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
 
     val isAuthScreen = screen is Screen.OnboardingWelcome ||
-                      screen is Screen.AuthSignup ||
-                      screen is Screen.AuthOtp ||
-                      screen is Screen.AuthLogin
+            screen is Screen.AuthSignup ||
+            screen is Screen.AuthOtp ||
+            screen is Screen.AuthLogin
+    val settingsStorage = rememberSettingsStorage()
+    remember { SettingsStore.configure(settingsStorage) }
+    var themeMode by remember { mutableStateOf(SettingsStore.getThemeMode()) }
 
-    KalasetuTheme {
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
+    KalasetuTheme(darkTheme = darkTheme) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             gesturesEnabled = !isAuthScreen,
@@ -70,6 +86,7 @@ fun App() {
                     currentRoute = when (screen) {
                         Screen.Feed -> "Dashboard"
                         Screen.Store -> "Store"
+                        Screen.Settings -> "Settings"
                         Screen.Marketplace -> "Store"
                         is Screen.ProductOverview -> "Store"
                         is Screen.Profile -> "Profile"
@@ -83,6 +100,7 @@ fun App() {
                         scope.launch { drawerState.close() }
                         when (route) {
                             "Profile" -> screen = Screen.Profile(userId = (AuthStore.userId ?: 123).toString())
+                            "Settings" -> screen = Screen.Settings
                             "Store" -> screen = Screen.Store
                             "Dashboard" -> screen = Screen.Feed
                             "Events" -> screen = Screen.ArtistHome(userId = "123")
@@ -138,6 +156,36 @@ fun App() {
                     )
                 }
 
+                Screen.Settings -> SettingsScreen(
+                    userName = currentProfile?.name ?: userName,
+                    userEmail = currentProfile?.email ?: userEmail,
+                    userAvatarUrl = currentProfile?.avatarUrl,
+                    userAvatarBytes = currentProfile?.avatarBytes,
+                    onNavigateToProfile = {
+                        screen = Screen.Profile(userId = AuthStore.userId?.toString() ?: "")
+                    },
+                    onBack = { screen = Screen.Feed },
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    onLoggedOut = {
+                        AuthStore.clear()
+                        SavedStore.clear()
+                        EventStore.clear()
+                        ApplicationStore.clear()
+                        OpportunityStore.clear()
+                        currentProfile = null
+                        userName = ""
+                        userEmail = ""
+                        userLocation = ""
+                        screen = Screen.AuthLogin
+                    },
+                    themeMode = themeMode,
+                    onThemeModeChange = { mode ->
+                        themeMode = mode
+                        SettingsStore.setThemeMode(mode)
+                    }
+                )
+
+
                 Screen.OnboardingWelcome -> OnboardingWelcomeScreen {
                     screen = Screen.AuthSignup
                 }
@@ -159,7 +207,7 @@ fun App() {
                             }
                         }
                     },
-                    onLogin = { screen = Screen.AuthLogin },
+                    onLogin = { screen = Screen.Feed},
                     onBack = { screen = Screen.OnboardingWelcome }
                 )
 

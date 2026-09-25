@@ -44,14 +44,14 @@ func NewApp() *App {
 
 	db, err := config.InitDB()
 	if err != nil {
-		log.Printf("Warning: Failed to connect to database: %v. Database operations will fail at runtime.", err)
-	} else {
-		// Run database migrations
-		if err := migrations.RunMigrations(db); err != nil {
-			log.Printf("Warning: Failed to run database migrations: %v", err)
-		}
-		log.Printf("Migrations done")
+		log.Fatalf("FATAL: failed to connect to database: %v", err)
 	}
+
+	// Run database migrations
+	if err := migrations.RunMigrations(db); err != nil {
+		log.Printf("Warning: Failed to run database migrations: %v", err)
+	}
+	log.Printf("Migrations done")
 
 	userRepo := repos.NewUserRepository(db)
 	refreshTokenRepo := repos.NewRefreshTokenRepository(db)

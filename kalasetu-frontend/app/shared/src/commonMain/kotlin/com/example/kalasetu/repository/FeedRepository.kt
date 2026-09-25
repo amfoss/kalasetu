@@ -1,6 +1,7 @@
 package com.example.kalasetu.repository
 
 import com.example.kalasetu.GetPostsQuery
+import com.example.kalasetu.GetPostsByUserQuery
 import com.example.kalasetu.DeletePostMutation
 import com.example.kalasetu.LikePostMutation
 import com.example.kalasetu.UnLikePostMutation
@@ -21,6 +22,21 @@ class FeedRepository {
         apolloClient
             .query(
                 GetPostsQuery(
+                    limit = Optional.Present(limit),
+                    offset = Optional.Present(offset)
+                )
+            )
+            .execute()
+
+    suspend fun getPostsByUser(
+        userId: String,
+        limit: Int = 20,
+        offset: Int = 0
+    ) =
+        apolloClient
+            .query(
+                GetPostsByUserQuery(
+                    userId = userId,
                     limit = Optional.Present(limit),
                     offset = Optional.Present(offset)
                 )

@@ -61,7 +61,7 @@ fun OrganizerHomeScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -80,6 +80,7 @@ fun OrganizerHomeScreen(
                 )
             }
         },
+        containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
             KalaBottomNav(
                 selectedIndex = 1,
@@ -89,7 +90,7 @@ fun OrganizerHomeScreen(
                 onProfileClick = onProfileClick
             )
         },
-        containerColor = Color.White,
+
     ) { padding ->
         if (events.isEmpty()) {
             // ─── Empty State ───
@@ -142,8 +143,8 @@ private fun OrganizerEventCard(event: Event, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(2.dp),
     ) {
         Column {
@@ -164,7 +165,7 @@ private fun OrganizerEventCard(event: Event, onClick: () -> Unit) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFFF4F1FF)),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(

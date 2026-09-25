@@ -38,4 +38,8 @@ object OpportunityStore {
             }
         }
     }
+
+    fun clear() {
+        _opportunities.value = emptyList()
+    }
 }
