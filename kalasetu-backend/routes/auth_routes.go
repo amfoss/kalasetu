@@ -10,6 +10,8 @@ import (
 func RegisterAuthRoutes(router *gin.RouterGroup, authHandler *handlers.AuthHandler) {
 	authGroup := router.Group("/auth")
 	{
+		authGroup.POST("/send-otp", authHandler.SendOTP)
+		authGroup.POST("/verify-otp", authHandler.VerifyOTP)
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
 		authGroup.POST("/refresh", authHandler.RefreshToken)
