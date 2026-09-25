@@ -38,10 +38,12 @@ import com.example.kalasetu.repository.PostRepository
 import com.example.kalasetu.repository.OnboardingRepository
 import com.example.kalasetu.features.onboarding.OnboardingData
 import kotlin.random.Random
+import com.russhwolf.settings.Settings
 
 @Composable
 fun App() {
-    var screen by remember { mutableStateOf<Screen>(Screen.OnboardingWelcome) }
+    var isRestoringSession by remember { mutableStateOf(true) }
+    var screen by remember {mutableStateOf<Screen>(Screen.OnboardingWelcome) }
     var selectedRole by remember { mutableStateOf("") }
     var userName by remember { mutableStateOf("") }
     var userEmail by remember { mutableStateOf("") }
@@ -49,7 +51,7 @@ fun App() {
     var currentProfile by remember { mutableStateOf<Profile?>(null) }
     var draftEvent by remember { mutableStateOf(EventDraft()) }
     var publishedPosts by remember { mutableStateOf<List<DraftPost>>(emptyList()) }
-
+    val authSettings = remember { Settings() }
     val sharedEventListViewModel: EventListViewModel = viewModel()
     val eventRepository = remember { EventRepository() }
     var onboardingData by remember { mutableStateOf(OnboardingData()) }
@@ -73,6 +75,20 @@ fun App() {
         ThemeMode.DARK -> true
     }
 
+    LaunchedEffect(Unit) {
+        AuthStore.initialize(authSettings)
+
+        screen = if (AuthStore.isLoggedIn()) {
+            Screen.Feed
+        } else {
+            Screen.OnboardingWelcome
+        }
+
+        isRestoringSession = false
+    }
+    if (isRestoringSession) {
+        return
+    }
     KalasetuTheme(darkTheme = darkTheme) {
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -207,7 +223,7 @@ fun App() {
                             }
                         }
                     },
-                    onLogin = { screen = Screen.Feed},
+                    onLogin = { screen = Screen.AuthLogin},
                     onBack = { screen = Screen.OnboardingWelcome }
                 )
 
