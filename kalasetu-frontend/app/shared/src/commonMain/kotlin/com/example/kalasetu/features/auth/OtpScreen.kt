@@ -95,11 +95,14 @@ fun AuthOtpScreen(
             Spacer(Modifier.height(48.dp))
 
             Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.CenterStart,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        8.dp,
+                        Alignment.CenterHorizontally
+                    )
                 ) {
                     repeat(6) { index ->
                         val char = otp.getOrNull(index)?.toString() ?: ""
@@ -107,13 +110,14 @@ fun AuthOtpScreen(
 
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
+                                .weight(1f)
+                                .aspectRatio(1f)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(
                                     if (isActive)
                                         SelectedPurple.copy(alpha = 0.08f)
                                     else
-                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        MaterialTheme.colorScheme.surfaceVariant
                                 )
                                 .border(
                                     width = 1.dp,
@@ -121,14 +125,14 @@ fun AuthOtpScreen(
                                         SelectedPurple
                                     else
                                         UnselectedBorder,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(12.dp)
                                 ),
-                            contentAlignment = Alignment.Center,
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = char,
                                 fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -146,11 +150,11 @@ fun AuthOtpScreen(
                     singleLine = true,
                     textStyle = TextStyle(
                         color = Color.Transparent,
-                        fontSize = 24.sp,
+                        fontSize = 24.sp
                     ),
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                    ),
+                        keyboardType = KeyboardType.Number
+                    )
                 )
             }
 
