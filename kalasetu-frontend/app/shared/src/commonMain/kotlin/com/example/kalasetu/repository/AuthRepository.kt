@@ -13,10 +13,26 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import com.example.kalasetu.BuildKonfig
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
 
 class AuthRepository {
 
-    private val client = HttpClient()
+    private val client = HttpClient(){
+        install(ContentNegotiation) {
+            json(
+                Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                }
+            )
+        }
+    }
 
     private val baseUrl = BuildKonfig.API_BASE_URL
 
@@ -203,5 +219,64 @@ class AuthRepository {
 
             Result.failure(e)
         }
+    }
+    suspend fun sendOtp(email: String): Result<Unit> {
+        return try {
+            val response = client.post("$baseUrl/api/v1/auth/send-otp") {
+                contentType(ContentType.Application.Json)
+
+                setBody(
+                    buildJsonObject {
+                        put("email", email)
+                        put("purpose", "signup")
+                    }
+                )
+            }
+
+            if (response.status.isSuccess()) {
+                Result.success(Unit)
+            } else {
+                val body = response.bodyAsText()
+                Result.failure(
+                    Exception(body.ifBlank { "Failed to send OTP" })
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun verifyOtp(
+        email: String,
+        otp: String
+    ): Result<Unit> {
+        return try {
+            val response = client.post("$baseUrl/api/v1/auth/verify-otp") {
+                contentType(ContentType.Application.Json)
+
+                setBody(
+                    buildJsonObject {
+                        put("email", email)
+                        put("otp", otp)
+                        put("purpose", "signup")
+                    }
+                )
+            }
+
+            if (response.status.isSuccess()) {
+                Result.success(Unit)
+            } else {
+                val body = response.bodyAsText()
+                Result.failure(
+                    Exception(body.ifBlank { "Invalid OTP" })
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resendOtp(email: String): Result<Unit> {
+        return sendOtp(email)
     }
 }

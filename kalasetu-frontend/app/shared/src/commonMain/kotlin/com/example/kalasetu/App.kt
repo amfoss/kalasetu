@@ -48,6 +48,8 @@ fun App() {
     var userName by remember { mutableStateOf("") }
     var userEmail by remember { mutableStateOf("") }
     var userLocation by remember { mutableStateOf("") }
+    var signupEmail by remember { mutableStateOf("") }
+    var signupOtp by remember { mutableStateOf("") }
     var currentProfile by remember { mutableStateOf<Profile?>(null) }
     var draftEvent by remember { mutableStateOf(EventDraft()) }
     var publishedPosts by remember { mutableStateOf<List<DraftPost>>(emptyList()) }
@@ -62,8 +64,9 @@ fun App() {
     val marketplaceViewModel: MarketplaceViewModel = viewModel()
 
     val isAuthScreen = screen is Screen.OnboardingWelcome ||
-            screen is Screen.AuthSignup ||
+            screen is Screen.AuthSignupEmail ||
             screen is Screen.AuthOtp ||
+            screen is Screen.AuthSignupDetails ||
             screen is Screen.AuthLogin
     val settingsStorage = rememberSettingsStorage()
     remember { SettingsStore.configure(settingsStorage) }
@@ -203,35 +206,81 @@ fun App() {
 
 
                 Screen.OnboardingWelcome -> OnboardingWelcomeScreen {
-                    screen = Screen.AuthSignup
+                    screen = Screen.AuthSignupEmail
                 }
 
-                Screen.AuthSignup -> AuthSignupScreen(
-                    onSignUp = { name, email, password ->
+                Screen.AuthSignupEmail -> AuthEmailScreen(
+                    onContinue = { email ->
+
                         scope.launch {
-                            val registerResult = AuthRepository().register(name, email, password)
-                            if (registerResult.isSuccess) {
-                                val loginResult = AuthRepository().login(email, password)
-                                if (loginResult.isSuccess) {
-                                    userName = AuthStore.userName ?: name
-                                    userEmail = AuthStore.userEmail ?: email
-                                    onboardingData = OnboardingData(name = name)
-                                    screen = Screen.OnboardingBasicInfo
-                                } else {
-                                    screen = Screen.AuthLogin
-                                }
+                            val result = AuthRepository().sendOtp(email)
+
+                            if (result.isSuccess) {
+                                signupEmail = email
+                                userEmail = email
+                                screen = Screen.AuthOtp
+                            } else {
+                                println(
+                                    "SEND OTP FAILED: " +
+                                            result.exceptionOrNull()?.message
+                                )
                             }
                         }
                     },
-                    onLogin = { screen = Screen.AuthLogin},
-                    onBack = { screen = Screen.OnboardingWelcome }
+
+                    onBack = {
+                        screen = Screen.OnboardingWelcome
+                    }
+                )
+                Screen.AuthOtp -> AuthOtpScreen(
+                    email = signupEmail,
+
+                    onVerify = { otp ->
+
+                        scope.launch {
+
+                            val result = AuthRepository().verifyOtp(
+                                email = signupEmail,
+                                otp = otp
+                            )
+
+                            if (result.isSuccess) {
+                                signupOtp = otp
+                                screen = Screen.AuthSignupDetails
+                            } else {
+                                println(
+                                    "VERIFY OTP FAILED: " +
+                                            result.exceptionOrNull()?.message
+                                )
+                            }
+                        }
+                    },
+
+                    onResend = {
+
+                        scope.launch {
+
+                            val result =
+                                AuthRepository().resendOtp(signupEmail)
+
+                            if (!result.isSuccess) {
+                                println(
+                                    "RESEND OTP FAILED: " +
+                                            result.exceptionOrNull()?.message
+                                )
+                            }
+                        }
+                    },
+
+                    onLogin = {
+                        screen = Screen.AuthLogin
+                    },
+
+                    onBack = {
+                        screen = Screen.AuthSignupEmail
+                    }
                 )
 
-                Screen.AuthOtp -> AuthOtpScreen(
-                    onVerify = { screen = Screen.OnboardingBasicInfo },
-                    onLogin = { screen = Screen.AuthLogin },
-                    onBack = { screen = Screen.AuthSignup }
-                )
 
                 Screen.AuthLogin -> AuthLoginScreen(
                     onLogin = { email, password ->
@@ -246,10 +295,75 @@ fun App() {
                             }
                         }
                     },
-                    onSignUp = { screen = Screen.AuthSignup },
-                    onBack = { screen = Screen.AuthSignup }
+                    onSignUp = {
+                        screen = Screen.AuthSignupEmail
+                    },
+
+                    onBack = {
+                        screen = Screen.AuthSignupEmail
+                    }
                 )
 
+                Screen.AuthSignupDetails -> AuthSignupDetailsScreen(
+                    email = signupEmail,
+
+                    onContinue = { name, password ->
+
+                        scope.launch {
+
+                            val registerResult =
+                                AuthRepository().register(
+                                    name = name,
+                                    email = signupEmail,
+                                    password = password
+                                )
+
+                            if (registerResult.isSuccess) {
+
+                                val loginResult =
+                                    AuthRepository().login(
+                                        email = signupEmail,
+                                        password = password
+                                    )
+
+                                if (loginResult.isSuccess) {
+
+                                    userName =
+                                        AuthStore.userName ?: name
+
+                                    userEmail =
+                                        AuthStore.userEmail ?: signupEmail
+
+                                    onboardingData =
+                                        OnboardingData(name = name)
+
+                                    screen =
+                                        Screen.OnboardingBasicInfo
+
+                                } else {
+
+                                    println(
+                                        "LOGIN AFTER SIGNUP FAILED: " +
+                                                loginResult.exceptionOrNull()?.message
+                                    )
+
+                                    screen = Screen.AuthLogin
+                                }
+
+                            } else {
+
+                                println(
+                                    "REGISTER FAILED: " +
+                                            registerResult.exceptionOrNull()?.message
+                                )
+                            }
+                        }
+                    },
+
+                    onBack = {
+                        screen = Screen.AuthOtp
+                    }
+                )
                 Screen.OnboardingBasicInfo -> OnboardingBasicInfoScreen(
                     onNext = { description, role ->
                         selectedRole = role
