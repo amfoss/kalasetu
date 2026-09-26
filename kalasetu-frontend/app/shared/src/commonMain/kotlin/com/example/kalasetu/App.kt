@@ -146,50 +146,22 @@ fun App() {
                 )
 
                 // ─── Marketplace (Store tab & Audience) ───
-//                Screen.Store, Screen.Marketplace -> {
-//                    BackHandler { screen = Screen.Feed }
-//                    MarketplaceScreen(
-//                        viewModel = marketplaceViewModel,
-//                        avatarUrl = currentProfile?.avatarUrl,
-//                        avatarBytes = currentProfile?.avatarBytes,
-//                        userName = currentProfile?.name ?: userName,
-//                        onProductClick = { productId -> screen = Screen.ProductOverview(productId) },
-//                        onProfileClick = { screen = Screen.Profile(userId = (AuthStore.userId ?: 123).toString()) },
-//                        onMenuClick = { scope.launch { drawerState.open() } },
-//                        onHomeClick = { screen = Screen.Feed },
-//                        onEventsClick = { screen = Screen.Events },
-//                        onStoreClick = { screen = Screen.Store },
-//                    )
-//                }
-                // ─── Marketplace ───
                 Screen.Store, Screen.Marketplace -> {
                     BackHandler { screen = Screen.Feed }
-
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "Coming Soon",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "Marketplace is coming soon!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
+                    MarketplaceScreen(
+                        viewModel = marketplaceViewModel,
+                        avatarUrl = currentProfile?.avatarUrl,
+                        avatarBytes = currentProfile?.avatarBytes,
+                        userName = currentProfile?.name ?: userName,
+                        onProductClick = { productId -> screen = Screen.ProductOverview(productId) },
+                        onProfileClick = { screen = Screen.Profile(userId = (AuthStore.userId ?: 123).toString()) },
+                        onMenuClick = { scope.launch { drawerState.open() } },
+                        onHomeClick = { screen = Screen.Feed },
+                        onEventsClick = { screen = Screen.Events },
+                        onStoreClick = { screen = Screen.Store },
+                    )
                 }
+
 
                 is Screen.ProductOverview -> {
                     BackHandler { screen = Screen.Marketplace }
