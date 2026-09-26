@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kalasetu.features.feed.KalaBottomNav
 import com.example.kalasetu.features.feed.KalaTopBar
-
+import androidx.compose.material3.MaterialTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MarketplaceScreen(
@@ -94,92 +94,116 @@ fun MarketplaceScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            //  Search bar in the main marketplace screen
-            Row(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp, bottom = 12.dp)
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardWhite)
-                    .border(1.dp, BorderGray, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = "Search",
-                    tint = TextDark,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                BasicTextField(
-                    value = query,
-                    onValueChange = viewModel::setQuery,
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        fontSize = 15.sp,
-                        color = TextDark,
-                    ),
-                    cursorBrush = SolidColor(MarketPurple),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { innerTextField ->
-                        if (query.isEmpty()) {
-                            Text(
-                                text = "Search",
-                                fontSize = 15.sp,
-                                color = TextGray,
-                            )
-                        }
-                        innerTextField()
-                    },
-                )
-            }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Coming Soon",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
 
-            // the Category Labels
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(MarketplaceCategories) { category ->
-                    CategoryChip(
-                        label = category,
-                        isSelected = category == selectedCategory,
-                        onClick = { viewModel.setCategory(category) },
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Marketplace is coming soon!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            // product cards grid
-            if (products.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("No products found", fontSize = 14.sp, color = TextGray)
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 150.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(products, key = { it.id }) { product ->
-                        ProductCard(
-                            product = product,
-                            isFavourite = product.id in favouriteIds,
-                            onFavouriteClick = { viewModel.toggleFavourite(product.id) },
-                            onClick = { onProductClick(product.id) },
-                        )
-                    }
-                }
-            }
+            //  Search bar in the main marketplace screen
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(horizontal = 16.dp)
+//                    .padding(top = 8.dp, bottom = 12.dp)
+//                    .height(50.dp)
+//                    .clip(RoundedCornerShape(12.dp))
+//                    .background(CardWhite)
+//                    .border(1.dp, BorderGray, RoundedCornerShape(12.dp))
+//                    .padding(horizontal = 16.dp),
+//                verticalAlignment = Alignment.CenterVertically,
+//            ) {
+//                Icon(
+//                    imageVector = Icons.Filled.Search,
+//                    contentDescription = "Search",
+//                    tint = TextDark,
+//                    modifier = Modifier.size(22.dp),
+//                )
+//                Spacer(Modifier.width(10.dp))
+//                BasicTextField(
+//                    value = query,
+//                    onValueChange = viewModel::setQuery,
+//                    singleLine = true,
+//                    textStyle = TextStyle(
+//                        fontSize = 15.sp,
+//                        color = TextDark,
+//                    ),
+//                    cursorBrush = SolidColor(MarketPurple),
+//                    modifier = Modifier.weight(1f),
+//                    decorationBox = { innerTextField ->
+//                        if (query.isEmpty()) {
+//                            Text(
+//                                text = "Search",
+//                                fontSize = 15.sp,
+//                                color = TextGray,
+//                            )
+//                        }
+//                        innerTextField()
+//                    },
+//                )
+//            }
+//
+//            // the Category Labels
+//            LazyRow(
+//                modifier = Modifier.fillMaxWidth(),
+//                contentPadding = PaddingValues(horizontal = 16.dp),
+//                horizontalArrangement = Arrangement.spacedBy(8.dp),
+//            ) {
+//                items(MarketplaceCategories) { category ->
+//                    CategoryChip(
+//                        label = category,
+//                        isSelected = category == selectedCategory,
+//                        onClick = { viewModel.setCategory(category) },
+//                    )
+//                }
+//            }
+//
+//            Spacer(Modifier.height(12.dp))
+//
+//            // product cards grid
+//            if (products.isEmpty()) {
+//                Box(
+//                    modifier = Modifier.fillMaxSize(),
+//                    contentAlignment = Alignment.Center,
+//                ) {
+//                    Text("No products found", fontSize = 14.sp, color = TextGray)
+//                }
+//            } else {
+//                LazyVerticalGrid(
+//                    columns = GridCells.Adaptive(minSize = 150.dp),
+//                    modifier = Modifier.fillMaxSize(),
+//                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+//                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+//                    verticalArrangement = Arrangement.spacedBy(12.dp),
+//                ) {
+//                    items(products, key = { it.id }) { product ->
+//                        ProductCard(
+//                            product = product,
+//                            isFavourite = product.id in favouriteIds,
+//                            onFavouriteClick = { viewModel.toggleFavourite(product.id) },
+//                            onClick = { onProductClick(product.id) },
+//                        )
+//                    }
+//                }
+//            }
         }
     }
 }

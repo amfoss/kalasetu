@@ -20,6 +20,7 @@ import com.example.kalasetu.theme.SubtitleGray
 fun AuthEmailScreen(
     onContinue: (String) -> Unit,
     onBack: () -> Unit,
+    onLogin: () -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -84,6 +85,34 @@ fun AuthEmailScreen(
                     fontSize = 14.sp
                 )
             }
+
+            Spacer(Modifier.weight(1f))
+
+            // Already have an account?
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Already have an account? ",
+                    color = SubtitleGray,
+                    fontSize = 14.sp
+                )
+
+                TextButton(
+                    onClick = onLogin,
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = "Login",
+                        color = SelectedPurple,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
 
         FloatingActionButton(

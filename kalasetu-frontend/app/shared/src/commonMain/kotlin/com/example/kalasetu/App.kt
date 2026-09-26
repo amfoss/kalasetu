@@ -162,6 +162,7 @@ fun App() {
                     )
                 }
 
+
                 is Screen.ProductOverview -> {
                     BackHandler { screen = Screen.Marketplace }
                     ProductOverviewScreen(
@@ -230,6 +231,9 @@ fun App() {
 
                     onBack = {
                         screen = Screen.OnboardingWelcome
+                    },
+                    onLogin = {
+                        screen = Screen.AuthLogin
                     }
                 )
                 Screen.AuthOtp -> AuthOtpScreen(
